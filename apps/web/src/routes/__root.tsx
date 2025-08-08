@@ -4,14 +4,14 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import type { trpc } from "@/utils/trpc";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   HeadContent,
   Outlet,
   createRootRouteWithContext,
   useRouterState,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+// import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import "../index.css";
 
 export interface RouterAppContext {
@@ -24,11 +24,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "kuaby-auto",
+        title: "KUABY Automation",
       },
       {
         name: "description",
-        content: "kuaby-auto is a web application",
+        content: "Digital Marketing Agency Automation",
       },
     ],
     links: [
@@ -45,7 +45,6 @@ function RootComponent() {
     select: (s) => s.isLoading,
   });
 
-
   return (
     <>
       <HeadContent />
@@ -61,8 +60,8 @@ function RootComponent() {
         </div>
         <Toaster richColors />
       </ThemeProvider>
-      <TanStackRouterDevtools position="bottom-left" />
-      <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+      {/* <TanStackRouterDevtools position="bottom-left" /> */}
+      {/* <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" /> */}
     </>
   );
 }
