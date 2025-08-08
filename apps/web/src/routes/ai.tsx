@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuthProtection } from "@/hooks/useAuthProtection";
 import { Send } from "lucide-react";
 import { useRef, useEffect } from "react";
 
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/ai")({
 });
 
 function RouteComponent() {
+  const { session, isPending } = useAuthProtection();
   const { messages, input, handleInputChange, handleSubmit } = useChat({
     api: `${import.meta.env.VITE_SERVER_URL}/ai`,
   });
@@ -19,6 +21,14 @@ function RouteComponent() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  if (isPending) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return <div>Redirecting...</div>;
+  }
 
   return (
     <div className="grid grid-rows-[1fr_auto] overflow-hidden w-full mx-auto p-4">

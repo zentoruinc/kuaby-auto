@@ -1,33 +1,39 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { trpc } from "@/utils/trpc";
-import { useQuery } from "@tanstack/react-query";
+import SignInForm from "@/components/auth/sign-in-form";
+import SignUpForm from "@/components/auth/sign-up-form";
+import { authClient } from "@/lib/auth-client";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
 });
 
 function HomeComponent() {
-  const healthCheck = useQuery(trpc.healthCheck.queryOptions());
+  const [showSignIn, setShowSignIn] = useState(true); // Default to login form
+  const { data: session, isPending } = authClient.useSession();
+  const navigate = useNavigate();
 
-  return (
-    <div className="container mx-auto max-w-3xl px-4 py-2">
-      <div className="grid gap-6">
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">API Status</h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-2 w-2 rounded-full ${healthCheck.data ? "bg-green-500" : "bg-red-500"}`}
-            />
-            <span className="text-sm text-muted-foreground">
-              {healthCheck.isLoading
-                ? "Checking..."
-                : healthCheck.data
-                  ? "Connected"
-                  : "Disconnected"}
-            </span>
-          </div>
-        </section>
-      </div>
-    </div>
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (session && !isPending) {
+      navigate({
+        to: "/dashboard",
+      });
+    }
+  }, [session, isPending, navigate]);
+
+  if (isPending) {
+    return <div>Loading...</div>;
+  }
+
+  // If user is authenticated, don't show auth forms (will redirect)
+  if (session) {
+    return <div>Redirecting...</div>;
+  }
+
+  return showSignIn ? (
+    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+  ) : (
+    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
   );
 }
