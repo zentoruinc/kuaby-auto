@@ -63,7 +63,13 @@ function TodosRoute() {
   };
 
   return (
-    <ProtectedLayout currentPage="Todos">
+    <ProtectedLayout
+      currentPage="Todos"
+      breadcrumbItems={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Todos" },
+      ]}
+    >
       <div className="mx-auto w-full max-w-md">
         <Card>
           <CardHeader>

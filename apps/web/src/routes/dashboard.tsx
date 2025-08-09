@@ -11,7 +11,10 @@ function RouteComponent() {
   const privateData = useQuery(trpc.privateData.queryOptions());
 
   return (
-    <ProtectedLayout currentPage="Dashboard">
+    <ProtectedLayout
+      currentPage="Dashboard"
+      breadcrumbItems={[{ label: "Dashboard" }]}
+    >
       <div className="grid auto-rows-min gap-4 md:grid-cols-3">
         <div className="bg-muted/50 aspect-video rounded-xl flex items-center justify-center">
           <h2 className="text-lg font-semibold">Welcome to Dashboard</h2>

@@ -22,7 +22,13 @@ function RouteComponent() {
   }, [messages]);
 
   return (
-    <ProtectedLayout currentPage="AI Chat">
+    <ProtectedLayout
+      currentPage="AI Chat"
+      breadcrumbItems={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "AI Chat" },
+      ]}
+    >
       <div className="grid grid-rows-[1fr_auto] overflow-hidden w-full h-full">
         <div className="overflow-y-auto space-y-4 pb-4">
           {messages.length === 0 ? (

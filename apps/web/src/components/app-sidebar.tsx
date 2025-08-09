@@ -6,6 +6,7 @@ import {
   CheckSquare,
   LifeBuoy,
   Send,
+  Plug,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
@@ -44,6 +45,11 @@ const data = {
       title: "AI Chat",
       url: "/ai",
       icon: Bot,
+    },
+    {
+      title: "Integrations",
+      url: "/integrations",
+      icon: Plug,
     },
   ],
   navSecondary: [

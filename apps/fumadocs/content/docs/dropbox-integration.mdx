@@ -1,0 +1,166 @@
+---
+title: Dropbox Integration Setup
+description: Complete guide to setting up Dropbox OAuth integration for file automation
+---
+
+# Dropbox Integration Setup
+
+This guide will walk you through setting up Dropbox OAuth integration to enable automated file operations with your Dropbox accounts.
+
+## Prerequisites
+
+- A Dropbox account
+- Access to the Dropbox App Console
+- Environment variables configured in your server
+
+## Step 1: Create a Dropbox App
+
+1. Go to the [Dropbox App Console](https://www.dropbox.com/developers/apps)
+2. Click **"Create app"**
+3. Choose **"Scoped access"** as the API type
+4. Select **"Full Dropbox"** for access type
+5. Give your app a unique name (e.g., "KUABY Automation")
+6. Click **"Create app"**
+
+## Step 2: Configure App Permissions
+
+In your newly created app's settings:
+
+1. Go to the **"Permissions"** tab
+2. Enable the following scopes:
+   - `account_info.read` - Read basic account information (required)
+   - `files.content.read` - Read file content
+   - `files.content.write` - Write file content
+   - `files.metadata.read` - Read file and folder metadata
+
+3. Click **"Submit"** to save the permissions
+
+## Step 3: Set OAuth Redirect URI
+
+1. In the **"Settings"** tab of your Dropbox app
+2. Find the **"OAuth 2"** section
+3. Add the following redirect URI:
+
+   ```
+   http://localhost:3001/integrations
+   ```
+
+   For production, use your actual domain:
+
+   ```
+   https://yourdomain.com/integrations
+   ```
+
+## Step 4: Get App Credentials
+
+From the **"Settings"** tab, copy:
+
+- **App key** (this is your Client ID)
+- **App secret** (this is your Client Secret)
+
+## Step 5: Configure Environment Variables
+
+Add the following environment variables to your server's `.env` file:
+
+```bash
+# Dropbox OAuth Configuration
+DROPBOX_CLIENT_ID=your_app_key_here
+DROPBOX_CLIENT_SECRET=your_app_secret_here
+DROPBOX_REDIRECT_URI=http://localhost:3001/integrations
+```
+
+### Environment Variable Details
+
+- `DROPBOX_CLIENT_ID`: Your Dropbox app's App Key
+- `DROPBOX_CLIENT_SECRET`: Your Dropbox app's App Secret
+- `DROPBOX_REDIRECT_URI`: The redirect URI configured in your Dropbox app (optional, defaults to `{BETTER_AUTH_URL}/api/integrations/dropbox/callback`)
+
+## Step 6: Restart Your Server
+
+After adding the environment variables, restart your development server:
+
+```bash
+cd apps/server
+bun run dev
+```
+
+## Step 7: Test the Integration
+
+1. Navigate to `/integrations` in your application
+2. Click **"Connect Dropbox"** on the Dropbox integration card
+3. You'll be redirected to Dropbox for authorization
+4. Grant the requested permissions
+5. You'll be redirected back to the integrations page
+6. The Dropbox integration should now show as "Connected"
+
+## Troubleshooting
+
+### Common Issues
+
+**"Invalid redirect URI" error:**
+
+- Ensure the redirect URI in your Dropbox app settings exactly matches the one in your environment variables
+- Check for trailing slashes or protocol mismatches (http vs https)
+
+**"Invalid client credentials" error:**
+
+- Verify your `DROPBOX_CLIENT_ID` and `DROPBOX_CLIENT_SECRET` are correct
+- Ensure there are no extra spaces or characters in your environment variables
+
+**"Insufficient permissions" error:**
+
+- Check that you've enabled the required scopes in your Dropbox app's Permissions tab
+- Make sure you clicked "Submit" after selecting the permissions
+
+### Development vs Production
+
+For development:
+
+```bash
+DROPBOX_REDIRECT_URI=http://localhost:3001/integrations
+```
+
+For production:
+
+```bash
+DROPBOX_REDIRECT_URI=https://yourdomain.com/integrations
+```
+
+Make sure to update the redirect URI in your Dropbox app settings when deploying to production.
+
+## Token Management
+
+### Access Token Expiration
+
+- **Access tokens expire after 4 hours** (14,400 seconds)
+- **Refresh tokens are long-lived** and don't expire automatically
+- The system automatically requests refresh tokens for persistent access
+- If a refresh token becomes invalid, users will need to re-authorize
+
+### Automatic Token Refresh
+
+The integration includes automatic token refresh functionality:
+
+- When access tokens expire, the system uses the stored refresh token
+- New access tokens are automatically obtained and stored
+- This ensures uninterrupted access to Dropbox APIs
+- Users only need to re-authorize if refresh tokens become invalid
+
+## Security Considerations
+
+- Keep your `DROPBOX_CLIENT_SECRET` secure and never expose it in client-side code
+- Use HTTPS in production to protect OAuth tokens in transit
+- Regularly rotate your app credentials if needed
+- Monitor your app's usage in the Dropbox App Console
+- Refresh tokens are stored securely in the database and used only for token renewal
+
+## Next Steps
+
+Once your Dropbox integration is working:
+
+1. Users can connect multiple Dropbox accounts
+2. Each connected account is stored securely in the database
+3. You can use the stored access tokens to perform file operations
+4. Users can disconnect integrations at any time from the integrations page
+
+For more information about using the Dropbox API with your stored tokens, see the [Dropbox API documentation](https://www.dropbox.com/developers/documentation/http/documentation).

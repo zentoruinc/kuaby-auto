@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuthProtection } from "@/hooks/useAuthProtection";
 import { cn } from "@/lib/utils";
+import { Link } from "@tanstack/react-router";
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -62,25 +63,23 @@ export function ProtectedLayout({
             <Breadcrumb>
               <BreadcrumbList>
                 {breadcrumbItems.map((item, index) => (
-                  <div key={index} className="flex items-center">
-                    <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbItem className="hidden md:block">
-                      {item.href ? (
-                        <BreadcrumbLink href={item.href}>
-                          {item.label}
-                        </BreadcrumbLink>
-                      ) : (
-                        <span>{item.label}</span>
-                      )}
-                    </BreadcrumbItem>
-                  </div>
+                  <>
+                    <div key={index} className="flex items-center">
+                      <BreadcrumbItem className="hidden md:block">
+                        {item.href ? (
+                          <BreadcrumbLink asChild>
+                            <Link to={item.href}>{item.label}</Link>
+                          </BreadcrumbLink>
+                        ) : (
+                          <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                        )}
+                      </BreadcrumbItem>
+                    </div>
+                    {index < breadcrumbItems.length - 1 && (
+                      <BreadcrumbSeparator className="hidden md:block" />
+                    )}
+                  </>
                 ))}
-                {breadcrumbItems.length > 0 && (
-                  <BreadcrumbSeparator className="hidden md:block" />
-                )}
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{currentPage}</BreadcrumbPage>
-                </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
