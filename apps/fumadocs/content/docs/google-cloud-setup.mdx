@@ -1,0 +1,291 @@
+---
+title: Google Cloud Services Setup
+description: Complete guide to setting up Google Cloud Speech-to-Text, Storage, and Gemini AI for the Ad Copy feature
+---
+
+# Google Cloud Services Setup
+
+This guide will walk you through setting up Google Cloud services required for the Ad Copy feature, including Speech-to-Text for video transcription and Gemini AI for image analysis.
+
+## Prerequisites
+
+- A Google Cloud Platform account
+- A Google Cloud project with billing enabled
+- Access to Google AI Studio for Gemini API key
+
+## Step 1: Create a Google Cloud Project
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Click **"Select a project"** → **"New Project"**
+3. Enter a project name (e.g., "KUABY Ad Copy")
+4. Select your billing account
+5. Click **"Create"**
+
+## Step 2: Enable Required APIs
+
+Enable the following APIs in your Google Cloud project:
+
+1. Go to **APIs & Services** → **Library**
+2. Search for and enable these APIs:
+   - **Cloud Speech-to-Text API**
+   - **Cloud Storage API**
+   - **Cloud Resource Manager API**
+
+### Enable Speech-to-Text API
+
+```bash
+gcloud services enable speech.googleapis.com
+```
+
+### Enable Cloud Storage API
+
+```bash
+gcloud services enable storage.googleapis.com
+```
+
+## Step 3: Create a Service Account
+
+1. Go to **IAM & Admin** → **Service Accounts**
+2. Click **"Create Service Account"**
+3. Enter details:
+   - **Name**: `kuaby-ad-copy-service`
+   - **Description**: `Service account for KUABY Ad Copy feature`
+4. Click **"Create and Continue"**
+
+### Assign Roles
+
+Add the following roles to your service account:
+
+- **Cloud Speech Client** (`roles/speech.client`)
+- **Storage Object Admin** (`roles/storage.objectAdmin`)
+- **Storage Bucket Creator** (`roles/storage.admin`)
+
+### Create and Download Key
+
+1. Click on your service account
+2. Go to **Keys** tab
+3. Click **"Add Key"** → **"Create new key"**
+4. Select **JSON** format
+5. Click **"Create"** and download the JSON file
+6. Save this file securely (e.g., `google-cloud-key.json`)
+
+## Step 4: Create a Cloud Storage Bucket
+
+Create a bucket for temporary audio file storage:
+
+### Using Google Cloud Console
+
+1. Go to **Cloud Storage** → **Buckets**
+2. Click **"Create Bucket"**
+3. Configure:
+   - **Name**: `kuaby-audio-temp-[your-project-id]` (must be globally unique)
+   - **Location**: Choose a region close to your server
+   - **Storage class**: Standard
+   - **Access control**: Uniform
+4. Click **"Create"**
+
+### Using gcloud CLI
+
+```bash
+# Replace with your unique bucket name
+gsutil mb gs://kuaby-audio-temp-your-project-id
+
+# Set lifecycle policy to auto-delete files after 1 day
+gsutil lifecycle set lifecycle.json gs://kuaby-audio-temp-your-project-id
+```
+
+Create `lifecycle.json`:
+
+```json
+{
+  "lifecycle": {
+    "rule": [
+      {
+        "action": { "type": "Delete" },
+        "condition": { "age": 1 }
+      }
+    ]
+  }
+}
+```
+
+## Step 5: Get Gemini AI API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/)
+2. Sign in with your Google account
+3. Click **"Get API key"**
+4. Click **"Create API key in new project"** or select existing project
+5. Copy the generated API key
+
+## Step 6: Configure Environment Variables
+
+Add these variables to your `.env` file:
+
+```bash
+# Google Cloud Services Configuration
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_CLOUD_KEY_FILE=/path/to/your/google-cloud-key.json
+GOOGLE_CLOUD_STORAGE_BUCKET=kuaby-audio-temp-your-project-id
+GOOGLE_AI_API_KEY=your-gemini-api-key
+
+# Legacy Google AI (if using both)
+GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-api-key
+```
+
+### Environment Variable Details
+
+| Variable                      | Description                       | Example                          |
+| ----------------------------- | --------------------------------- | -------------------------------- |
+| `GOOGLE_CLOUD_PROJECT_ID`     | Your Google Cloud project ID      | `kuaby-ad-copy-123456`           |
+| `GOOGLE_CLOUD_KEY_FILE`       | Path to service account JSON file | `./config/google-cloud-key.json` |
+| `GOOGLE_CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name         | `kuaby-audio-temp-123456`        |
+| `GOOGLE_AI_API_KEY`           | Gemini AI API key                 | `AIzaSyC...`                     |
+
+## Step 7: Test the Setup
+
+### Test Speech-to-Text
+
+Create a test script to verify Speech-to-Text works:
+
+```javascript
+import { GoogleSpeechService } from "./src/services/google-speech.js";
+
+const speechService = new GoogleSpeechService();
+
+// Test with a sample audio file
+const result = await speechService.transcribeShortAudio(
+  "./test-audio.wav",
+  "en-US"
+);
+
+console.log("Transcription:", result.transcript);
+console.log("Success:", result.success);
+```
+
+### Test Gemini Vision
+
+```javascript
+import { GeminiVisionService } from "./src/services/gemini-vision.js";
+
+const visionService = new GeminiVisionService();
+
+// Test with a sample image
+const result = await visionService.analyzeMarketingImage("./test-image.jpg");
+
+console.log("Analysis:", result.interpretation);
+console.log("Success:", result.success);
+```
+
+## Security Best Practices
+
+### Service Account Key Security
+
+1. **Never commit** the service account JSON file to version control
+2. **Store securely** outside your project directory
+3. **Use environment variables** for the file path
+4. **Rotate keys regularly** (every 90 days recommended)
+
+### Bucket Security
+
+1. **Enable uniform bucket-level access**
+2. **Set lifecycle policies** to auto-delete temporary files
+3. **Monitor usage** to prevent unexpected costs
+4. **Use IAM conditions** for fine-grained access control
+
+### API Key Security
+
+1. **Restrict API keys** to specific APIs and IP addresses
+2. **Use separate keys** for development and production
+3. **Monitor usage** in Google Cloud Console
+4. **Rotate keys** if compromised
+
+## Troubleshooting
+
+### Common Issues
+
+#### Authentication Errors
+
+```
+Error: Could not load the default credentials
+```
+
+**Solution**: Ensure `GOOGLE_CLOUD_KEY_FILE` points to a valid service account JSON file.
+
+#### Permission Denied
+
+```
+Error: Permission denied on bucket
+```
+
+**Solution**: Verify your service account has the correct roles assigned.
+
+#### API Not Enabled
+
+```
+Error: Speech API has not been used
+```
+
+**Solution**: Enable the required APIs in Google Cloud Console.
+
+#### Quota Exceeded
+
+```
+Error: Quota exceeded for quota metric
+```
+
+**Solution**: Check your quotas in Google Cloud Console and request increases if needed.
+
+### Debugging Tips
+
+1. **Check service account permissions**:
+
+   ```bash
+   gcloud projects get-iam-policy YOUR_PROJECT_ID
+   ```
+
+2. **Test bucket access**:
+
+   ```bash
+   gsutil ls gs://your-bucket-name
+   ```
+
+3. **Verify API enablement**:
+   ```bash
+   gcloud services list --enabled
+   ```
+
+## Cost Optimization
+
+### Speech-to-Text Pricing
+
+- **Standard model**: $0.006 per 15 seconds
+- **Enhanced model**: $0.009 per 15 seconds
+- **First 60 minutes per month**: Free
+
+### Cloud Storage Pricing
+
+- **Standard storage**: ~$0.020 per GB per month
+- **Operations**: ~$0.05 per 10,000 operations
+
+### Gemini API Pricing
+
+- **Gemini 1.5 Flash**: Free tier available
+- **Rate limits**: 15 requests per minute (free tier)
+
+### Cost-Saving Tips
+
+1. **Use caching** to avoid re-processing the same files
+2. **Set lifecycle policies** to auto-delete temporary files
+3. **Choose appropriate regions** to minimize data transfer costs
+4. **Monitor usage** regularly in Google Cloud Console
+
+## Next Steps
+
+Once your Google Cloud services are configured:
+
+1. Test the Ad Copy feature with sample assets
+2. Monitor usage and costs in Google Cloud Console
+3. Set up alerts for quota limits and billing
+4. Consider upgrading to paid tiers for production use
+
+For more information about using these services in the Ad Copy feature, see the [Ad Copy Documentation](/docs/ad-copy-feature).

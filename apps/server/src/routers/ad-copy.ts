@@ -12,6 +12,7 @@ import { db } from "../db";
 import { nanoid } from "nanoid";
 import { DropboxService } from "../services/dropbox";
 import { AssetInterpretationService } from "../services/asset-interpretation";
+import { AssetInterpreter } from "../services/asset-interpreter";
 
 export const adCopyRouter = router({
   // Get all projects for the current user
@@ -292,6 +293,81 @@ export const adCopyRouter = router({
         console.error("Asset processing failed:", error);
         throw new Error(
           `Asset processing failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    }),
+
+  // Interpret assets using AI (speech-to-text for videos, vision for images)
+  interpretAssets: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // Get project and its assets
+        const project = await db
+          .select()
+          .from(adCopyProject)
+          .where(
+            and(
+              eq(adCopyProject.id, input.projectId),
+              eq(adCopyProject.userId, ctx.session.user.id)
+            )
+          )
+          .limit(1);
+
+        if (!project[0]) {
+          throw new Error("Project not found");
+        }
+
+        const assets = await db
+          .select()
+          .from(adCopyAsset)
+          .where(eq(adCopyAsset.projectId, input.projectId));
+
+        if (assets.length === 0) {
+          return {
+            success: true,
+            interpretations: [],
+            message: "No assets to interpret",
+          };
+        }
+
+        const assetInterpreter = new AssetInterpreter();
+
+        // Prepare assets for interpretation
+        const assetsToInterpret = assets
+          .filter((asset) => asset.localPath) // Only process downloaded assets
+          .map((asset) => ({
+            dropboxFileId: asset.dropboxFileId,
+            filePath: asset.localPath!,
+            fileType: asset.fileType as "image" | "video",
+            fileName: asset.fileName,
+          }));
+
+        if (assetsToInterpret.length === 0) {
+          throw new Error(
+            "No assets have been downloaded yet. Please run processAssets first."
+          );
+        }
+
+        // Interpret all assets
+        const interpretations =
+          await assetInterpreter.interpretAssets(assetsToInterpret);
+
+        // Count successful interpretations
+        const successCount = interpretations.filter((i) => i.success).length;
+        const fromCacheCount = interpretations.filter(
+          (i) => i.metadata.fromCache
+        ).length;
+
+        return {
+          success: true,
+          interpretations,
+          message: `Interpreted ${successCount}/${interpretations.length} assets (${fromCacheCount} from cache)`,
+        };
+      } catch (error) {
+        console.error("Asset interpretation failed:", error);
+        throw new Error(
+          `Asset interpretation failed: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     }),
