@@ -14,6 +14,7 @@ export const adCopyProject = pgTable("ad_copy_project", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  platform: text("platform").notNull().default("facebook"), // facebook, google, tiktok, etc.
   landingPageUrls: json("landing_page_urls")
     .$type<string[]>()
     .notNull()
@@ -62,9 +63,33 @@ export const adCopyGeneration = pgTable("ad_copy_generation", {
     .notNull()
     .references(() => adCopyProject.id, { onDelete: "cascade" }),
   variationNumber: integer("variation_number").notNull(),
-  headline: text("headline").notNull(),
-  body: text("body").notNull(),
-  callToAction: text("call_to_action").notNull(),
+  platform: text("platform").notNull().default("facebook"), // facebook, google, tiktok, etc.
+  variationType: text("variation_type").notNull(), // benefits, pain_agitation, storytelling
+  content: json("content")
+    .$type<{
+      facebook?: {
+        primaryText: string;
+        headline: string;
+      };
+      google?: {
+        headline: string;
+        description1: string;
+        description2?: string;
+        path1?: string;
+        path2?: string;
+      };
+      tiktok?: {
+        caption: string;
+        hashtags: string[];
+      };
+      // Legacy format for backward compatibility
+      legacy?: {
+        headline: string;
+        body: string;
+        callToAction: string;
+      };
+    }>()
+    .notNull(),
   context: json("context")
     .$type<{
       assetInterpretations: string[];

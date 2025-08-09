@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   X,
   FileImage,
@@ -116,6 +123,7 @@ export function CreateProjectDialog({
   const form = useForm({
     defaultValues: {
       name: "",
+      platform: "facebook" as "facebook" | "google" | "tiktok",
       landingPageUrls: [""],
       systemPrompt: defaultSystemPrompt,
       variationCount: 3,
@@ -255,6 +263,38 @@ export function CreateProjectDialog({
                           onChange={(e) => field.handleChange(e.target.value)}
                           placeholder="Enter project name"
                         />
+                        {field.state.meta.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-red-500">
+                            {error}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </form.Field>
+                </div>
+
+                <div className="space-y-2">
+                  <form.Field name="platform">
+                    {(field) => (
+                      <div className="space-y-2">
+                        <Label htmlFor={field.name}>Platform</Label>
+                        <Select
+                          value={field.state.value}
+                          onValueChange={(value: string) =>
+                            field.handleChange(
+                              value as "facebook" | "google" | "tiktok"
+                            )
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select platform" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="facebook">Facebook</SelectItem>
+                            <SelectItem value="google">Google Ads</SelectItem>
+                            <SelectItem value="tiktok">TikTok</SelectItem>
+                          </SelectContent>
+                        </Select>
                         {field.state.meta.errors.map((error, index) => (
                           <p key={index} className="text-sm text-red-500">
                             {error}

@@ -8,12 +8,47 @@ import {
 } from "../db/schema/ad-copy";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { FacebookAdCopyGenerator } from "./facebook-ad-copy-generator";
 
-export interface AdCopyVariation {
-  variationNumber: number;
+export type AdPlatform = "facebook" | "google" | "tiktok";
+export type VariationType = "benefits" | "pain_agitation" | "storytelling";
+
+export interface FacebookAdContent {
+  primaryText: string;
+  headline: string;
+}
+
+export interface GoogleAdContent {
+  headline: string;
+  description1: string;
+  description2?: string;
+  path1?: string;
+  path2?: string;
+}
+
+export interface TikTokAdContent {
+  caption: string;
+  hashtags: string[];
+}
+
+export interface LegacyAdContent {
   headline: string;
   body: string;
   callToAction: string;
+}
+
+export interface AdCopyContent {
+  facebook?: FacebookAdContent;
+  google?: GoogleAdContent;
+  tiktok?: TikTokAdContent;
+  legacy?: LegacyAdContent;
+}
+
+export interface AdCopyVariation {
+  variationNumber: number;
+  platform: AdPlatform;
+  variationType: VariationType;
+  content: AdCopyContent;
 }
 
 export interface AdCopyGenerationResult {
@@ -39,6 +74,7 @@ export interface GenerationContext {
   landingPageContent: string[];
   systemPrompt: string;
   projectName: string;
+  platform: AdPlatform;
   variationCount: number;
 }
 
@@ -65,7 +101,7 @@ export class AdCopyGenerator {
   }
 
   /**
-   * Generate ad copy variations based on context
+   * Generate ad copy variations based on context and platform
    */
   async generateAdCopy(
     context: GenerationContext
@@ -73,17 +109,16 @@ export class AdCopyGenerator {
     const startTime = Date.now();
 
     try {
-      const prompt = this.buildPrompt(context);
+      let variations: AdCopyVariation[];
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const generatedText = response.text();
-
-      // Parse the generated ad copy variations
-      const variations = this.parseGeneratedContent(
-        generatedText,
-        context.variationCount
-      );
+      // Use platform-specific generators
+      if (context.platform === "facebook") {
+        const facebookGenerator = new FacebookAdCopyGenerator();
+        variations = await facebookGenerator.generateFacebookAdCopy(context);
+      } else {
+        // Fallback to legacy generation for other platforms
+        variations = await this.generateLegacyAdCopy(context);
+      }
 
       const processingTime = Date.now() - startTime;
 
@@ -94,7 +129,7 @@ export class AdCopyGenerator {
         metadata: {
           model: "gemini-1.5-flash",
           temperature: 0.8,
-          totalTokens: this.estimateTokens(prompt + generatedText),
+          totalTokens: this.estimateTokens("Generated content"),
           processingTime,
           contextUsed: {
             assetInterpretations: context.assetInterpretations.length,
@@ -124,6 +159,20 @@ export class AdCopyGenerator {
         },
       };
     }
+  }
+
+  /**
+   * Generate legacy ad copy for backward compatibility
+   */
+  private async generateLegacyAdCopy(
+    context: GenerationContext
+  ): Promise<AdCopyVariation[]> {
+    const prompt = this.buildPrompt(context);
+    const result = await this.model.generateContent(prompt);
+    const response = await result.response;
+    const generatedText = response.text();
+
+    return this.parseGeneratedContent(generatedText, context.variationCount);
   }
 
   /**
@@ -186,7 +235,7 @@ Generate the ad copy variations now:`;
   }
 
   /**
-   * Parse the generated content into structured variations
+   * Parse the generated content into structured variations (legacy format)
    */
   private parseGeneratedContent(
     generatedText: string,
@@ -213,9 +262,15 @@ Generate the ad copy variations now:`;
 
       variations.push({
         variationNumber: i + 1,
-        headline: this.truncateText(headline, 60),
-        body: this.truncateText(body, 150),
-        callToAction: this.truncateText(callToAction, 30),
+        platform: "google", // Default to google for legacy
+        variationType: "benefits",
+        content: {
+          legacy: {
+            headline: this.truncateText(headline, 60),
+            body: this.truncateText(body, 150),
+            callToAction: this.truncateText(callToAction, 30),
+          },
+        },
       });
     }
 
@@ -224,9 +279,15 @@ Generate the ad copy variations now:`;
       const num = variations.length + 1;
       variations.push({
         variationNumber: num,
-        headline: `Compelling Headline ${num}`,
-        body: `Engaging body text that drives action and converts visitors into customers ${num}`,
-        callToAction: `Act Now ${num}`,
+        platform: "google",
+        variationType: "benefits",
+        content: {
+          legacy: {
+            headline: `Compelling Headline ${num}`,
+            body: `Engaging body text that drives action and converts visitors into customers ${num}`,
+            callToAction: `Act Now ${num}`,
+          },
+        },
       });
     }
 
@@ -267,9 +328,9 @@ Generate the ad copy variations now:`;
         id,
         projectId,
         variationNumber: variation.variationNumber,
-        headline: variation.headline,
-        body: variation.body,
-        callToAction: variation.callToAction,
+        platform: variation.platform,
+        variationType: variation.variationType,
+        content: variation.content,
         context: {
           assetInterpretations: context.assetInterpretations,
           landingPageContent: context.landingPageContent,
@@ -309,6 +370,7 @@ Generate the ad copy variations now:`;
         landingPageContent: [], // Will be populated from cache
         systemPrompt: project[0].systemPrompt,
         projectName: project[0].name,
+        platform: project[0].platform as AdPlatform,
         variationCount: project[0].variationCount,
       };
 

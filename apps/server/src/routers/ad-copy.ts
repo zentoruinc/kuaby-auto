@@ -18,6 +18,20 @@ import { AdCopyGenerator } from "../services/ad-copy-generator";
 import { CleanupMonitor } from "../services/cleanup-monitor";
 import fs from "fs";
 
+// Helper function to get default system prompt based on platform
+function getDefaultSystemPrompt(platform: string): string {
+  switch (platform) {
+    case "facebook":
+      return `You are an experienced ad copywriter with extensive expertise in direct response copywriting. You produce persuasive, engaging Facebook ad copy tailored for the platform's format requirements. You understand Facebook's character limits, tone, and format requirements. You use proven persuasion techniques to craft compelling Primary Text and Headlines that resonate with the target audience, driving clicks, conversions, and overall campaign success. You are meticulous, creative, and focused on delivering high-performing Facebook ad copy.`;
+    case "google":
+      return "You are an expert Google Ads copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action. Follow Google Ads character limits and best practices.";
+    case "tiktok":
+      return "You are an expert TikTok ad copywriter. Create engaging, trendy ad copy that resonates with TikTok's young audience. Use casual language, trending phrases, and compelling hooks that drive engagement and conversions.";
+    default:
+      return "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.";
+  }
+}
+
 export const adCopyRouter = router({
   // Get all projects for the current user
   getProjects: protectedProcedure.query(async ({ ctx }) => {
@@ -70,6 +84,7 @@ export const adCopyRouter = router({
     .input(
       z.object({
         name: z.string().min(1, "Project name is required"),
+        platform: z.enum(["facebook", "google", "tiktok"]).default("facebook"),
         landingPageUrls: z
           .array(z.string().url())
           .min(1, "At least one landing page URL is required"),
@@ -87,10 +102,10 @@ export const adCopyRouter = router({
         id: projectId,
         userId: ctx.session.user.id,
         name: input.name,
+        platform: input.platform,
         landingPageUrls: input.landingPageUrls,
         systemPrompt:
-          input.systemPrompt ||
-          "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.",
+          input.systemPrompt || getDefaultSystemPrompt(input.platform),
         variationCount: input.variationCount,
         status: "draft",
         createdAt: now,

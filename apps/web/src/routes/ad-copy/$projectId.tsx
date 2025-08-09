@@ -231,33 +231,134 @@ function ProjectDetailsRoute() {
                 {generations.map((generation) => (
                   <div key={generation.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium">
-                        Variation {generation.variationNumber}
-                      </h4>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-medium">
+                          Variation {generation.variationNumber}
+                        </h4>
+                        <Badge variant="secondary" className="text-xs">
+                          {generation.platform}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {generation.variationType?.replace("_", " ")}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Headline
-                        </label>
-                        <p className="text-sm font-medium">
-                          {generation.headline}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Body
-                        </label>
-                        <p className="text-sm">{generation.body}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">
-                          Call to Action
-                        </label>
-                        <p className="text-sm font-medium">
-                          {generation.callToAction}
-                        </p>
-                      </div>
+                      {/* Facebook Format */}
+                      {generation.content?.facebook && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Headline
+                            </label>
+                            <p className="text-sm font-medium">
+                              {generation.content.facebook.headline}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Primary Text
+                            </label>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {generation.content.facebook.primaryText}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Google Format */}
+                      {generation.content?.google && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Headline
+                            </label>
+                            <p className="text-sm font-medium">
+                              {generation.content.google.headline}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Description 1
+                            </label>
+                            <p className="text-sm">
+                              {generation.content.google.description1}
+                            </p>
+                          </div>
+                          {generation.content.google.description2 && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">
+                                Description 2
+                              </label>
+                              <p className="text-sm">
+                                {generation.content.google.description2}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* TikTok Format */}
+                      {generation.content?.tiktok && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Caption
+                            </label>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {generation.content.tiktok.caption}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Hashtags
+                            </label>
+                            <p className="text-sm">
+                              {generation.content.tiktok.hashtags.join(" ")}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Legacy Format (backward compatibility) */}
+                      {generation.content?.legacy && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Headline
+                            </label>
+                            <p className="text-sm font-medium">
+                              {generation.content.legacy.headline}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Body
+                            </label>
+                            <p className="text-sm">
+                              {generation.content.legacy.body}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">
+                              Call to Action
+                            </label>
+                            <p className="text-sm font-medium">
+                              {generation.content.legacy.callToAction}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* No content available */}
+                      {!generation.content?.facebook &&
+                        !generation.content?.google &&
+                        !generation.content?.tiktok &&
+                        !generation.content?.legacy && (
+                          <div className="text-center py-4 text-muted-foreground">
+                            <p>No content available for this variation</p>
+                          </div>
+                        )}
                     </div>
                   </div>
                 ))}

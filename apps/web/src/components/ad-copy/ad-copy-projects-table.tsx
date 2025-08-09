@@ -61,6 +61,7 @@ import { EditProjectDialog } from "./edit-project-dialog";
 type AdCopyProject = {
   id: string;
   name: string;
+  platform: string;
   status: string;
   userId: string;
   variationCount: number;
@@ -150,6 +151,18 @@ export function AdCopyProjectsTable() {
       cell: ({ row }) => (
         <div className="font-medium">{row.getValue("name")}</div>
       ),
+    },
+    {
+      accessorKey: "platform",
+      header: "Platform",
+      cell: ({ row }) => {
+        const platform = row.getValue("platform") as string;
+        return (
+          <Badge variant="outline" className="capitalize">
+            {platform}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "status",
