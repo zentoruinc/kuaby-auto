@@ -13,6 +13,8 @@ import { nanoid } from "nanoid";
 import { DropboxService } from "../services/dropbox";
 import { AssetInterpretationService } from "../services/asset-interpretation";
 import { AssetInterpreter } from "../services/asset-interpreter";
+import { WebScraperService } from "../services/web-scraper";
+import { AdCopyGenerator } from "../services/ad-copy-generator";
 
 export const adCopyRouter = router({
   // Get all projects for the current user
@@ -372,26 +374,130 @@ export const adCopyRouter = router({
       }
     }),
 
+  // Scrape landing pages for a project
+  scrapeLandingPages: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // Get project and its landing page URLs
+        const project = await db
+          .select()
+          .from(adCopyProject)
+          .where(
+            and(
+              eq(adCopyProject.id, input.projectId),
+              eq(adCopyProject.userId, ctx.session.user.id)
+            )
+          )
+          .limit(1);
+
+        if (!project[0]) {
+          throw new Error("Project not found");
+        }
+
+        const landingPageUrls = project[0].landingPageUrls;
+
+        if (!landingPageUrls || landingPageUrls.length === 0) {
+          return {
+            success: true,
+            scrapedPages: [],
+            message: "No landing page URLs to scrape",
+          };
+        }
+
+        // Scrape all landing page URLs
+        const scrapedPages =
+          await WebScraperService.scrapeMultipleUrls(landingPageUrls);
+
+        // Count successful scrapes
+        const successCount = scrapedPages.filter((page) => page.success).length;
+        const fromCacheCount = scrapedPages.filter(
+          (page) => page.metadata.processingTime === 0 // Cached results have 0 processing time
+        ).length;
+
+        return {
+          success: true,
+          scrapedPages,
+          message: `Scraped ${successCount}/${scrapedPages.length} landing pages (${fromCacheCount} from cache)`,
+        };
+      } catch (error) {
+        console.error("Landing page scraping failed:", error);
+        throw new Error(
+          `Landing page scraping failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    }),
+
   // Generate ad copy for a project
   generateAdCopy: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // Update project status to processing
-      await db
-        .update(adCopyProject)
-        .set({
-          status: "processing",
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(adCopyProject.id, input.projectId),
-            eq(adCopyProject.userId, ctx.session.user.id)
-          )
+      try {
+        // Update project status to processing
+        await db
+          .update(adCopyProject)
+          .set({
+            status: "processing",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(adCopyProject.id, input.projectId),
+              eq(adCopyProject.userId, ctx.session.user.id)
+            )
+          );
+
+        // Generate ad copy using the AI service
+        const adCopyGenerator = new AdCopyGenerator();
+        const result = await adCopyGenerator.generateForProject(
+          input.projectId,
+          ctx.session.user.id
         );
 
-      // This will trigger the background processing
-      // For now, just return success
-      return { success: true, message: "Ad copy generation started" };
+        // Update project status based on result
+        const finalStatus = result.success ? "completed" : "failed";
+        await db
+          .update(adCopyProject)
+          .set({
+            status: finalStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(adCopyProject.id, input.projectId),
+              eq(adCopyProject.userId, ctx.session.user.id)
+            )
+          );
+
+        if (!result.success) {
+          throw new Error(result.error || "Ad copy generation failed");
+        }
+
+        return {
+          success: true,
+          variations: result.variations,
+          metadata: result.metadata,
+          message: `Generated ${result.variations.length} ad copy variations`,
+        };
+      } catch (error) {
+        // Update project status to failed
+        await db
+          .update(adCopyProject)
+          .set({
+            status: "failed",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(adCopyProject.id, input.projectId),
+              eq(adCopyProject.userId, ctx.session.user.id)
+            )
+          );
+
+        console.error("Ad copy generation failed:", error);
+        throw new Error(
+          `Ad copy generation failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
     }),
 });
