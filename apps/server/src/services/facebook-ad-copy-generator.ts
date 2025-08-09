@@ -5,10 +5,12 @@ import type {
   GenerationContext,
   AdCopyVariation,
 } from "./ad-copy-generator";
+import { PromptTemplateService } from "./prompt-template-service";
 
 export class FacebookAdCopyGenerator {
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private promptTemplateService: PromptTemplateService;
 
   constructor() {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -26,14 +28,16 @@ export class FacebookAdCopyGenerator {
         maxOutputTokens: 2048,
       },
     });
+    this.promptTemplateService = new PromptTemplateService();
   }
 
   /**
    * Generate Facebook ad copy variations following the custom GPT structure
    */
-  async generateFacebookAdCopy(
-    context: GenerationContext
-  ): Promise<AdCopyVariation[]> {
+  async generateFacebookAdCopy(context: GenerationContext): Promise<{
+    variations: AdCopyVariation[];
+    finalPrompt: string;
+  }> {
     const variations: AdCopyVariation[] = [];
     const variationTypes: VariationType[] = [
       "benefits",
@@ -41,9 +45,39 @@ export class FacebookAdCopyGenerator {
       "storytelling",
     ];
 
+    // Get the prompt template for Facebook
+    const template =
+      await this.promptTemplateService.getDefaultTemplate("facebook");
+    if (!template) {
+      throw new Error("No Facebook prompt template found");
+    }
+
+    // Build the final prompt using the template
+    const finalPrompt = this.promptTemplateService.buildPromptFromTemplate(
+      template,
+      {
+        projectName: context.projectName,
+        assetInterpretations: context.assetInterpretations,
+        landingPageContent: context.landingPageContent,
+        variationCount: context.variationCount,
+        variationType: variationTypes[0],
+      }
+    );
+
     for (let i = 0; i < context.variationCount; i++) {
       const variationType = variationTypes[i % variationTypes.length];
-      const prompt = this.buildFacebookPrompt(context, variationType, i + 1);
+
+      // Build prompt for this specific variation type
+      const prompt = this.promptTemplateService.buildPromptFromTemplate(
+        template,
+        {
+          projectName: context.projectName,
+          assetInterpretations: context.assetInterpretations,
+          landingPageContent: context.landingPageContent,
+          variationCount: 1, // Generate one at a time
+          variationType,
+        }
+      );
 
       try {
         const result = await this.model.generateContent(prompt);
@@ -77,84 +111,10 @@ export class FacebookAdCopyGenerator {
       }
     }
 
-    return variations;
-  }
-
-  /**
-   * Build Facebook-specific prompt following custom GPT instructions
-   */
-  private buildFacebookPrompt(
-    context: GenerationContext,
-    variationType: VariationType,
-    variationNumber: number
-  ): string {
-    let prompt = `You are an experienced ad copywriter with extensive expertise in direct response copywriting. You produce persuasive, engaging Facebook ad copy that drives clicks, conversions, and overall campaign success.
-
-PROJECT: ${context.projectName}
-
-TASK: Create Facebook ad copy following this EXACT structure:
-1. Primary Text (main paragraph)
-2. Headline (featuring free offering)
-
-VARIATION TYPE: ${this.getVariationTypeDescription(variationType)}
-
-STRICT FORMATTING RULES:
-- Do NOT include dates, times, bold, italic, underline, or hyperlink formats
-- Do NOT use em dashes
-- Do NOT start Primary Text with a headline - go directly into the main paragraph
-- Use emojis ONLY in bullet points within Primary Text
-- Craft headlines that prominently feature the free offering (e.g., 'Free Online Summit: xxx', 'Free Webinar: xxx', 'Free eBook: xxx')
-
-PRIMARY TEXT STRUCTURE:
-1. Start with a hook considering myths, goals, fears, or frustrations of the target audience
-2. Include compelling story or narrative (if available from context)
-3. Add emoji bullet list highlighting benefits/outcomes the audience will experience
-4. End with call-to-action paired with social proof or scarcity component
-
-`;
-
-    // Add asset interpretations
-    if (context.assetInterpretations.length > 0) {
-      prompt += `VISUAL/AUDIO ASSETS CONTEXT:\n`;
-      context.assetInterpretations.forEach((interpretation, index) => {
-        prompt += `Asset ${index + 1}: ${interpretation}\n`;
-      });
-      prompt += `\n`;
-    }
-
-    // Add landing page content
-    if (context.landingPageContent.length > 0) {
-      prompt += `LANDING PAGE CONTENT:\n`;
-      context.landingPageContent.forEach((content, index) => {
-        prompt += `Page ${index + 1}: ${content}\n`;
-      });
-      prompt += `\n`;
-    }
-
-    prompt += `OUTPUT FORMAT:
-PRIMARY_TEXT: [Your primary text here - no headline, direct into main paragraph with hook, story, emoji bullets, and CTA with social proof/scarcity]
-
-HEADLINE: [Your headline featuring free offering]
-
-Generate the Facebook ad copy now:`;
-
-    return prompt;
-  }
-
-  /**
-   * Get description for each variation type
-   */
-  private getVariationTypeDescription(variationType: VariationType): string {
-    switch (variationType) {
-      case "benefits":
-        return "Focus on the benefits and outcomes of the offer with future pacing sentiment. Emphasize what the audience will achieve and how their life will improve.";
-      case "pain_agitation":
-        return "Focus on the pain of the audience and further agitate that pain. Highlight their current struggles and frustrations before presenting the solution.";
-      case "storytelling":
-        return "Utilize a storytelling angle by scanning available stories and testimonials. Create a compelling narrative that the target audience can relate to.";
-      default:
-        return "Create compelling ad copy that resonates with the target audience.";
-    }
+    return {
+      variations,
+      finalPrompt,
+    };
   }
 
   /**

@@ -2,6 +2,7 @@ import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
 import { todoRouter } from "./todo";
 import { integrationRouter } from "./integration";
 import { adCopyRouter } from "./ad-copy";
+import { promptTemplateRouter } from "./prompt-template";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -16,5 +17,6 @@ export const appRouter = router({
   todo: todoRouter,
   integration: integrationRouter,
   adCopy: adCopyRouter,
+  promptTemplate: promptTemplateRouter,
 });
 export type AppRouter = typeof appRouter;

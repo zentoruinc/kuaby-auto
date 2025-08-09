@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Save, Loader } from "lucide-react";
 import { trpc, queryClient } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -59,7 +58,6 @@ export function EditProjectDialog({
     defaultValues: {
       name: "",
       landingPageUrls: [""],
-      systemPrompt: "",
       variationCount: 3,
     },
     onSubmit: async ({ value }) => {
@@ -82,7 +80,7 @@ export function EditProjectDialog({
         ? data.project.landingPageUrls
         : [""]
     );
-    form.setFieldValue("systemPrompt", data.project.systemPrompt);
+
     form.setFieldValue("variationCount", data.project.variationCount);
   }
 
@@ -249,29 +247,6 @@ export function EditProjectDialog({
                     onChange={(e) =>
                       field.handleChange(parseInt(e.target.value) || 1)
                     }
-                  />
-                  {field.state.meta.errors.map((error, index) => (
-                    <p key={index} className="text-sm text-red-500">
-                      {error}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </form.Field>
-
-            {/* System Prompt */}
-            <form.Field name="systemPrompt">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>System Prompt</Label>
-                  <Textarea
-                    id={field.name}
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="Instructions for the AI copywriter..."
-                    rows={4}
                   />
                   {field.state.meta.errors.map((error, index) => (
                     <p key={index} className="text-sm text-red-500">

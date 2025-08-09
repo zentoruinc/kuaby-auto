@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AdCopyRouteImport } from './routes/ad-copy'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdCopyPromptsRouteImport } from './routes/ad-copy/prompts'
 import { Route as AdCopyProjectIdRouteImport } from './routes/ad-copy/$projectId'
 
 const TodosRoute = TodosRouteImport.update({
@@ -47,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdCopyPromptsRoute = AdCopyPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => AdCopyRoute,
+} as any)
 const AdCopyProjectIdRoute = AdCopyProjectIdRouteImport.update({
   id: '/$projectId',
   path: '/$projectId',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
   '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
+  '/ad-copy/prompts': typeof AdCopyPromptsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
   '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
+  '/ad-copy/prompts': typeof AdCopyPromptsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
   '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
+  '/ad-copy/prompts': typeof AdCopyPromptsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/todos'
     | '/ad-copy/$projectId'
+    | '/ad-copy/prompts'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/todos'
     | '/ad-copy/$projectId'
+    | '/ad-copy/prompts'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/todos'
     | '/ad-copy/$projectId'
+    | '/ad-copy/prompts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -164,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ad-copy/prompts': {
+      id: '/ad-copy/prompts'
+      path: '/prompts'
+      fullPath: '/ad-copy/prompts'
+      preLoaderRoute: typeof AdCopyPromptsRouteImport
+      parentRoute: typeof AdCopyRoute
+    }
     '/ad-copy/$projectId': {
       id: '/ad-copy/$projectId'
       path: '/$projectId'
@@ -176,10 +195,12 @@ declare module '@tanstack/react-router' {
 
 interface AdCopyRouteChildren {
   AdCopyProjectIdRoute: typeof AdCopyProjectIdRoute
+  AdCopyPromptsRoute: typeof AdCopyPromptsRoute
 }
 
 const AdCopyRouteChildren: AdCopyRouteChildren = {
   AdCopyProjectIdRoute: AdCopyProjectIdRoute,
+  AdCopyPromptsRoute: AdCopyPromptsRoute,
 }
 
 const AdCopyRouteWithChildren =

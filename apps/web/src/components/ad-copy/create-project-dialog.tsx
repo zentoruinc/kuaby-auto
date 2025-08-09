@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { z } from "zod";
 import {
   Credenza,
   CredenzaBody,
-  CredenzaClose,
   CredenzaContent,
   CredenzaDescription,
   CredenzaFooter,
@@ -14,8 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -23,7 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -31,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Plus,
   X,
@@ -50,9 +46,6 @@ interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const defaultSystemPrompt =
-  "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.";
 
 // Step indicator component
 function StepIndicator({
@@ -103,7 +96,7 @@ export function CreateProjectDialog({
 
   const createProjectMutation = useMutation(
     trpc.adCopy.createProject.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success("Project created successfully");
         // Invalidate and refetch projects list
         queryClient.invalidateQueries({
@@ -120,12 +113,30 @@ export function CreateProjectDialog({
     })
   );
 
+  const generateAdCopyMutation = useMutation(
+    trpc.adCopy.generateAdCopy.mutationOptions({
+      onSuccess: () => {
+        toast.success("Ad copy generation started successfully");
+        // Invalidate and refetch projects list
+        queryClient.invalidateQueries({
+          queryKey: [["adCopy", "getProjects"]],
+        });
+        onOpenChange(false);
+        form.reset();
+        setCurrentStep(0);
+        setSelectedAssets([]);
+      },
+      onError: (error) => {
+        toast.error("Failed to start ad copy generation: " + error.message);
+      },
+    })
+  );
+
   const form = useForm({
     defaultValues: {
       name: "",
       platform: "facebook" as "facebook" | "google" | "tiktok",
       landingPageUrls: [""],
-      systemPrompt: defaultSystemPrompt,
       variationCount: 3,
     },
     onSubmit: async ({ value }) => {
@@ -157,12 +168,6 @@ export function CreateProjectDialog({
           });
         }
 
-        // Validate system prompt
-        if (!value.systemPrompt || value.systemPrompt.trim() === "") {
-          toast.error("System prompt is required");
-          hasErrors = true;
-        }
-
         // Validate variation count
         if (value.variationCount < 1 || value.variationCount > 10) {
           toast.error("Variation count must be between 1 and 10");
@@ -188,6 +193,29 @@ export function CreateProjectDialog({
     },
   });
 
+  const handleGenerateAdCopy = () => {
+    const values = form.state.values;
+
+    // Create project and immediately generate ad copy
+    createProjectMutation.mutate(
+      {
+        name: values.name,
+        platform: values.platform,
+        landingPageUrls: values.landingPageUrls.filter(
+          (url: string) => url.trim() !== ""
+        ),
+        variationCount: values.variationCount,
+        assetIds: selectedAssets,
+      },
+      {
+        onSuccess: (data) => {
+          // Immediately start ad copy generation
+          generateAdCopyMutation.mutate({ projectId: data.projectId });
+        },
+      }
+    );
+  };
+
   const addLandingPageUrl = () => {
     const currentUrls = form.getFieldValue("landingPageUrls");
     form.setFieldValue("landingPageUrls", [...currentUrls, ""]);
@@ -203,12 +231,8 @@ export function CreateProjectDialog({
     }
   };
 
-  const toggleAssetSelection = (assetId: string) => {
-    setSelectedAssets((prev) =>
-      prev.includes(assetId)
-        ? prev.filter((id) => id !== assetId)
-        : [...prev, assetId]
-    );
+  const handleAssetSelectionChange = (assetIds: string[]) => {
+    setSelectedAssets(assetIds);
   };
 
   const handleBack = () => {
@@ -382,30 +406,6 @@ export function CreateProjectDialog({
                     )}
                   </form.Field>
                 </div>
-
-                <div className="space-y-2">
-                  <form.Field name="systemPrompt">
-                    {(field) => (
-                      <div className="space-y-2">
-                        <Label htmlFor={field.name}>System Prompt</Label>
-                        <Textarea
-                          id={field.name}
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          placeholder="Instructions for the AI copywriter..."
-                          rows={4}
-                        />
-                        {field.state.meta.errors.map((error, index) => (
-                          <p key={index} className="text-sm text-red-500">
-                            {error}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
               </>
             ) : (
               <>
@@ -462,49 +462,24 @@ export function CreateProjectDialog({
                       Select the images and videos you want to use for this
                       project:
                     </div>
-                    <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                      {availableAssets.map((asset: any) => (
-                        <Card
-                          key={asset.id}
-                          className={`cursor-pointer transition-colors ${
-                            selectedAssets.includes(asset.id)
-                              ? "ring-2 ring-primary bg-primary/5"
-                              : "hover:bg-muted/50"
-                          }`}
-                          onClick={() => toggleAssetSelection(asset.id)}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-center space-x-3">
-                              {asset.fileType === "image" ? (
-                                <FileImage className="h-8 w-8 text-blue-500" />
-                              ) : (
-                                <FileVideo className="h-8 w-8 text-green-500" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {asset.fileName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {asset.fileType} •{" "}
-                                  {(asset.fileSize / 1024 / 1024).toFixed(1)} MB
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    {selectedAssets.length > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-muted-foreground">
-                          Selected:
-                        </span>
-                        <Badge variant="secondary">
-                          {selectedAssets.length} asset
-                          {selectedAssets.length !== 1 ? "s" : ""}
-                        </Badge>
-                      </div>
-                    )}
+                    <MultiSelect
+                      options={availableAssets.map((asset: any) => ({
+                        label: asset.fileName,
+                        value: asset.id,
+                        icon:
+                          asset.fileType === "image" ? FileImage : FileVideo,
+                        style: {
+                          iconColor:
+                            asset.fileType === "image" ? "#3b82f6" : "#10b981",
+                        },
+                      }))}
+                      onValueChange={handleAssetSelectionChange}
+                      defaultValue={selectedAssets}
+                      placeholder="Select assets for your ad copy..."
+                      searchable={true}
+                      maxCount={5}
+                      className="w-full"
+                    />
                   </div>
                 )}
               </>
@@ -523,19 +498,40 @@ export function CreateProjectDialog({
               <div className="flex items-center space-x-2">
                 <form.Subscribe>
                   {(state) => (
-                    <Button
-                      type="submit"
-                      disabled={
-                        state.isSubmitting ||
-                        createProjectMutation.isPending ||
-                        (currentStep === 1 && selectedAssets.length === 0)
-                      }
-                    >
-                      {createProjectMutation.isPending ? (
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      {currentStep === 0 ? "Next" : "Create Project"}
-                    </Button>
+                    <>
+                      {currentStep === 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            state.isSubmitting ||
+                            createProjectMutation.isPending ||
+                            generateAdCopyMutation.isPending ||
+                            selectedAssets.length === 0
+                          }
+                          onClick={handleGenerateAdCopy}
+                        >
+                          {generateAdCopyMutation.isPending ? (
+                            <Loader className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Generate Ad Copy
+                        </Button>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={
+                          state.isSubmitting ||
+                          createProjectMutation.isPending ||
+                          generateAdCopyMutation.isPending ||
+                          (currentStep === 1 && selectedAssets.length === 0)
+                        }
+                      >
+                        {createProjectMutation.isPending ? (
+                          <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        {currentStep === 0 ? "Next" : "Save Draft"}
+                      </Button>
+                    </>
                   )}
                 </form.Subscribe>
               </div>

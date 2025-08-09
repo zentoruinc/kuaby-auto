@@ -41,6 +41,16 @@ const data = {
       title: "Ad Copy",
       url: "/ad-copy",
       icon: PenTool,
+      items: [
+        {
+          title: "Projects",
+          url: "/ad-copy",
+        },
+        {
+          title: "Prompt Templates",
+          url: "/ad-copy/prompts",
+        },
+      ],
     },
     {
       title: "Todos",

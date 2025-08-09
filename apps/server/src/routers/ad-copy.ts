@@ -61,10 +61,33 @@ export const adCopyRouter = router({
         throw new Error("Project not found");
       }
 
-      const assets = await db
-        .select()
+      // Get assets with their interpretations
+      const assetsWithInterpretations = await db
+        .select({
+          asset: adCopyAsset,
+          interpretation: assetInterpretationCache,
+        })
         .from(adCopyAsset)
+        .leftJoin(
+          assetInterpretationCache,
+          eq(adCopyAsset.dropboxFileId, assetInterpretationCache.dropboxFileId)
+        )
         .where(eq(adCopyAsset.projectId, input.id));
+
+      // Get landing page metadata for all URLs
+      const landingPageMetadata = await Promise.all(
+        project[0].landingPageUrls.map(async (url) => {
+          const metadata = await db
+            .select()
+            .from(landingPageCache)
+            .where(eq(landingPageCache.url, url))
+            .limit(1);
+          return {
+            url,
+            metadata: metadata[0] || null,
+          };
+        })
+      );
 
       const generations = await db
         .select()
@@ -74,8 +97,12 @@ export const adCopyRouter = router({
 
       return {
         project: project[0],
-        assets,
+        assets: assetsWithInterpretations.map((row) => ({
+          ...row.asset,
+          interpretation: row.interpretation,
+        })),
         generations,
+        landingPageMetadata,
       };
     }),
 

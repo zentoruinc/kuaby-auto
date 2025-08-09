@@ -31,17 +31,34 @@ export interface TikTokAdContent {
   hashtags: string[];
 }
 
-export interface LegacyAdContent {
-  headline: string;
-  body: string;
-  callToAction: string;
-}
-
 export interface AdCopyContent {
   facebook?: FacebookAdContent;
   google?: GoogleAdContent;
   tiktok?: TikTokAdContent;
-  legacy?: LegacyAdContent;
+}
+
+export interface PromptSection {
+  id: string;
+  name: string;
+  content: string;
+  editable: boolean;
+  required: boolean;
+  order: number;
+}
+
+export interface PromptTemplate {
+  id: string;
+  userId: string;
+  name: string;
+  promptType: string;
+  isDefault: boolean;
+  template: {
+    platform: string;
+    systemPrompt: string;
+    sections: PromptSection[];
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface AdCopyVariation {
@@ -105,19 +122,24 @@ export class AdCopyGenerator {
    */
   async generateAdCopy(
     context: GenerationContext
-  ): Promise<AdCopyGenerationResult> {
+  ): Promise<AdCopyGenerationResult & { finalPrompt: string }> {
     const startTime = Date.now();
 
     try {
       let variations: AdCopyVariation[];
+      let finalPrompt: string;
 
       // Use platform-specific generators
       if (context.platform === "facebook") {
         const facebookGenerator = new FacebookAdCopyGenerator();
-        variations = await facebookGenerator.generateFacebookAdCopy(context);
+        const result = await facebookGenerator.generateFacebookAdCopy(context);
+        variations = result.variations;
+        finalPrompt = result.finalPrompt;
       } else {
         // Fallback to legacy generation for other platforms
-        variations = await this.generateLegacyAdCopy(context);
+        const result = await this.generateLegacyAdCopy(context);
+        variations = result.variations;
+        finalPrompt = result.finalPrompt;
       }
 
       const processingTime = Date.now() - startTime;
@@ -125,11 +147,12 @@ export class AdCopyGenerator {
       return {
         projectId: "", // Will be set by caller
         variations,
+        finalPrompt,
         success: true,
         metadata: {
           model: "gemini-1.5-flash",
           temperature: 0.8,
-          totalTokens: this.estimateTokens("Generated content"),
+          totalTokens: this.estimateTokens(finalPrompt),
           processingTime,
           contextUsed: {
             assetInterpretations: context.assetInterpretations.length,
@@ -144,6 +167,7 @@ export class AdCopyGenerator {
       return {
         projectId: "",
         variations: [],
+        finalPrompt: "",
         success: false,
         error: `Ad copy generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         metadata: {
@@ -164,15 +188,22 @@ export class AdCopyGenerator {
   /**
    * Generate legacy ad copy for backward compatibility
    */
-  private async generateLegacyAdCopy(
-    context: GenerationContext
-  ): Promise<AdCopyVariation[]> {
+  private async generateLegacyAdCopy(context: GenerationContext): Promise<{
+    variations: AdCopyVariation[];
+    finalPrompt: string;
+  }> {
     const prompt = this.buildPrompt(context);
     const result = await this.model.generateContent(prompt);
     const response = await result.response;
     const generatedText = response.text();
 
-    return this.parseGeneratedContent(generatedText, context.variationCount);
+    return {
+      variations: this.parseGeneratedContent(
+        generatedText,
+        context.variationCount
+      ),
+      finalPrompt: prompt,
+    };
   }
 
   /**
@@ -262,13 +293,13 @@ Generate the ad copy variations now:`;
 
       variations.push({
         variationNumber: i + 1,
-        platform: "google", // Default to google for legacy
+        platform: "google",
         variationType: "benefits",
         content: {
-          legacy: {
+          google: {
             headline: this.truncateText(headline, 60),
-            body: this.truncateText(body, 150),
-            callToAction: this.truncateText(callToAction, 30),
+            description1: this.truncateText(body, 150),
+            description2: this.truncateText(callToAction, 30),
           },
         },
       });
@@ -282,10 +313,10 @@ Generate the ad copy variations now:`;
         platform: "google",
         variationType: "benefits",
         content: {
-          legacy: {
+          google: {
             headline: `Compelling Headline ${num}`,
-            body: `Engaging body text that drives action and converts visitors into customers ${num}`,
-            callToAction: `Act Now ${num}`,
+            description1: `Engaging body text that drives action and converts visitors into customers ${num}`,
+            description2: `Act Now ${num}`,
           },
         },
       });
@@ -317,7 +348,8 @@ Generate the ad copy variations now:`;
     projectId: string,
     variations: AdCopyVariation[],
     context: GenerationContext,
-    metadata: any
+    metadata: any,
+    finalPrompt: string
   ): Promise<void> {
     const now = new Date();
 
@@ -331,6 +363,7 @@ Generate the ad copy variations now:`;
         platform: variation.platform,
         variationType: variation.variationType,
         content: variation.content,
+        finalPrompt,
         context: {
           assetInterpretations: context.assetInterpretations,
           landingPageContent: context.landingPageContent,
@@ -454,7 +487,8 @@ Generate the ad copy variations now:`;
           projectId,
           result.variations,
           context,
-          result.metadata
+          result.metadata,
+          result.finalPrompt
         );
       }
 

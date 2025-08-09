@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  text,
-  timestamp,
-  boolean,
-  integer,
-  json,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, json } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 export const adCopyProject = pgTable("ad_copy_project", {
@@ -82,14 +75,9 @@ export const adCopyGeneration = pgTable("ad_copy_generation", {
         caption: string;
         hashtags: string[];
       };
-      // Legacy format for backward compatibility
-      legacy?: {
-        headline: string;
-        body: string;
-        callToAction: string;
-      };
     }>()
     .notNull(),
+  finalPrompt: text("final_prompt").notNull(), // Record the exact prompt sent to AI
   context: json("context")
     .$type<{
       assetInterpretations: string[];
@@ -119,6 +107,32 @@ export const landingPageCache = pgTable("landing_page_cache", {
     ogDescription?: string;
     scrapedAt: string;
   }>(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const promptTemplate = pgTable("prompt_template", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  promptType: text("prompt_type").notNull(), // ad_copy, email, blog, etc.
+  isDefault: text("is_default").notNull().default("false"), // true, false
+  template: json("template")
+    .$type<{
+      platform: string; // facebook, google, tiktok, etc.
+      systemPrompt: string;
+      sections: {
+        id: string;
+        name: string;
+        content: string;
+        editable: boolean;
+        required: boolean;
+        order: number;
+      }[];
+    }>()
+    .notNull(),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 });
