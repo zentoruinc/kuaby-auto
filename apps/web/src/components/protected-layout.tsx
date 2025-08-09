@@ -17,6 +17,8 @@ import {
 import { useAuthProtection } from "@/hooks/useAuthProtection";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -37,11 +39,25 @@ export function ProtectedLayout({
   const { session, isPending } = useAuthProtection();
 
   if (isPending) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="mt-2 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!session) {
-    return <div>Redirecting...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="mt-2 text-muted-foreground">Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,6 +97,9 @@ export function ProtectedLayout({
                 ))}
               </BreadcrumbList>
             </Breadcrumb>
+          </div>
+          <div className="ml-auto px-3">
+            <ModeToggle />
           </div>
         </header>
         <div className={cn("flex flex-1 flex-col gap-4", className)}>

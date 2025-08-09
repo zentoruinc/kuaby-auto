@@ -32,7 +32,7 @@ import {
   X,
   FileImage,
   FileVideo,
-  Loader,
+  Loader2,
   ExternalLink,
   Upload,
 } from "lucide-react";
@@ -411,7 +411,7 @@ export function CreateProjectDialog({
               <>
                 {assetsLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader className="h-6 w-6 animate-spin" />
+                    <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="ml-2">Loading assets...</span>
                   </div>
                 ) : assetsError ? (
@@ -512,7 +512,7 @@ export function CreateProjectDialog({
                           onClick={handleGenerateAdCopy}
                         >
                           {generateAdCopyMutation.isPending ? (
-                            <Loader className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : null}
                           Generate Ad Copy
                         </Button>
@@ -527,7 +527,7 @@ export function CreateProjectDialog({
                         }
                       >
                         {createProjectMutation.isPending ? (
-                          <Loader className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : null}
                         {currentStep === 0 ? "Next" : "Save Draft"}
                       </Button>

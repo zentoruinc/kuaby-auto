@@ -1,4 +1,4 @@
-import Loader from "@/components/loader";
+import Loader2 from "@/components/loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import type { trpc } from "@/utils/trpc";
@@ -54,7 +54,7 @@ function RootComponent() {
         storageKey="vite-ui-theme"
       >
         <div className="grid grid-rows-[auto_1fr] h-svh">
-          {isFetching ? <Loader /> : <Outlet />}
+          {isFetching ? <Loader2 /> : <Outlet />}
         </div>
         <Toaster richColors />
       </ThemeProvider>

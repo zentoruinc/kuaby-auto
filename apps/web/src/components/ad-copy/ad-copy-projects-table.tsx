@@ -45,7 +45,7 @@ import {
   Edit,
   Trash2,
   Play,
-  Loader,
+  Loader2,
 } from "lucide-react";
 import { trpc } from "@/utils/trpc";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -283,7 +283,7 @@ export function AdCopyProjectsTable() {
                     >
                       {processAssetsMutation.isPending ||
                       generateAdCopyMutation.isPending ? (
-                        <Loader className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Play className="h-4 w-4" />
                       )}
@@ -363,7 +363,14 @@ export function AdCopyProjectsTable() {
   });
 
   if (isLoading) {
-    return <div>Loading projects...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="mt-2 text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

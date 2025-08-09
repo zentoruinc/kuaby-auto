@@ -17,7 +17,7 @@ import {
   FileImage,
   FileVideo,
   Globe,
-  Loader,
+  Loader2,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -82,7 +82,7 @@ function ProjectDetailsRoute() {
       >
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <Loader className="h-8 w-8 animate-spin mx-auto" />
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
             <p className="mt-2 text-muted-foreground">Loading project...</p>
           </div>
         </div>

@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import {
   Credenza,
   CredenzaBody,
-  CredenzaClose,
   CredenzaContent,
   CredenzaDescription,
   CredenzaFooter,
@@ -13,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Plus, Save, Loader } from "lucide-react";
+import { X, Plus, Save, Loader2 } from "lucide-react";
 import { trpc, queryClient } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -115,7 +113,7 @@ export function EditProjectDialog({
             </CredenzaDescription>
           </CredenzaHeader>
           <CredenzaBody className="flex items-center justify-center py-8">
-            <Loader className="h-8 w-8 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin" />
           </CredenzaBody>
         </CredenzaContent>
       </Credenza>

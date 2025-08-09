@@ -5,7 +5,6 @@ import {
   CredenzaBody,
   CredenzaContent,
   CredenzaDescription,
-  CredenzaFooter,
   CredenzaHeader,
   CredenzaTitle,
 } from "@/components/credenza";
@@ -13,13 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -28,18 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  Plus,
-  X,
-  Save,
-  Eye,
-  Edit,
-  Trash2,
-  Settings,
-  Loader,
-  GripVertical,
-} from "lucide-react";
+import { Plus, X, Save, Edit, Trash2, Loader2 } from "lucide-react";
 import { trpc, queryClient } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -390,7 +371,7 @@ export function PromptTemplateManager({
         </Button>
         <Button type="submit" disabled={createTemplateMutation.isPending}>
           {createTemplateMutation.isPending ? (
-            <Loader className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
