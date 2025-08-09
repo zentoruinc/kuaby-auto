@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   Send,
   Plug,
+  PenTool,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
@@ -35,6 +36,11 @@ const data = {
       url: "/dashboard",
       icon: LayoutDashboard,
       isActive: true,
+    },
+    {
+      title: "Ad Copy",
+      url: "/ad-copy",
+      icon: PenTool,
     },
     {
       title: "Todos",
