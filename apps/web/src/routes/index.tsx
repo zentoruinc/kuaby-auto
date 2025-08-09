@@ -1,5 +1,6 @@
 import SignInForm from "@/components/auth/sign-in-form";
 import SignUpForm from "@/components/auth/sign-up-form";
+import Header from "@/components/header";
 import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
@@ -31,9 +32,14 @@ function HomeComponent() {
     return <div>Redirecting...</div>;
   }
 
-  return showSignIn ? (
-    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-  ) : (
-    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+  return (
+    <>
+      <Header />
+      {showSignIn ? (
+        <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+      ) : (
+        <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+      )}
+    </>
   );
 }

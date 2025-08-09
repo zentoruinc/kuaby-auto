@@ -7,6 +7,15 @@ import { toast } from "sonner";
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
+      // Don't show toast for authentication errors (401/UNAUTHORIZED)
+      // These are handled by the auth protection logic
+      if (
+        error.message?.includes("UNAUTHORIZED") ||
+        error.message?.includes("Authentication required")
+      ) {
+        return;
+      }
+
       toast.error(error.message, {
         action: {
           label: "retry",
