@@ -16,16 +16,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Plus, 
-  X, 
-  FileImage, 
-  FileVideo, 
+import {
+  Plus,
+  X,
+  FileImage,
+  FileVideo,
   Loader2,
   ExternalLink,
-  Upload
+  Upload,
 } from "lucide-react";
 import { trpc } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -36,10 +42,16 @@ interface CreateProjectDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const defaultSystemPrompt = "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.";
+const defaultSystemPrompt =
+  "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.";
 
-export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
-  const [currentStep, setCurrentStep] = useState<"details" | "assets">("details");
+export function CreateProjectDialog({
+  open,
+  onOpenChange,
+}: CreateProjectDialogProps) {
+  const [currentStep, setCurrentStep] = useState<"details" | "assets">(
+    "details"
+  );
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
 
   const { data: availableAssets = [], isLoading: assetsLoading } = useQuery(
@@ -77,16 +89,23 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       // Final submission
       createProjectMutation.mutate({
         ...value,
-        landingPageUrls: value.landingPageUrls.filter(url => url.trim() !== ""),
+        landingPageUrls: value.landingPageUrls.filter(
+          (url) => url.trim() !== ""
+        ),
         assetIds: selectedAssets,
       });
     },
     validators: {
       onSubmit: z.object({
         name: z.string().min(1, "Project name is required"),
-        landingPageUrls: z.array(z.string().url("Invalid URL")).min(1, "At least one landing page URL is required"),
+        landingPageUrls: z
+          .array(z.string().url("Invalid URL"))
+          .min(1, "At least one landing page URL is required"),
         systemPrompt: z.string().min(1, "System prompt is required"),
-        variationCount: z.number().min(1, "Must generate at least 1 variation").max(10, "Maximum 10 variations allowed"),
+        variationCount: z
+          .number()
+          .min(1, "Must generate at least 1 variation")
+          .max(10, "Maximum 10 variations allowed"),
       }),
     },
   });
@@ -99,14 +118,17 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const removeLandingPageUrl = (index: number) => {
     const currentUrls = form.getFieldValue("landingPageUrls");
     if (currentUrls.length > 1) {
-      form.setFieldValue("landingPageUrls", currentUrls.filter((_, i) => i !== index));
+      form.setFieldValue(
+        "landingPageUrls",
+        currentUrls.filter((_, i) => i !== index)
+      );
     }
   };
 
   const toggleAssetSelection = (assetId: string) => {
-    setSelectedAssets(prev => 
-      prev.includes(assetId) 
-        ? prev.filter(id => id !== assetId)
+    setSelectedAssets((prev) =>
+      prev.includes(assetId)
+        ? prev.filter((id) => id !== assetId)
         : [...prev, assetId]
     );
   };
@@ -129,13 +151,14 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       <CredenzaContent className="max-w-2xl">
         <CredenzaHeader>
           <CredenzaTitle>
-            {currentStep === "details" ? "Create New Ad Copy Project" : "Select Assets"}
+            {currentStep === "details"
+              ? "Create New Ad Copy Project"
+              : "Select Assets"}
           </CredenzaTitle>
           <CredenzaDescription>
-            {currentStep === "details" 
+            {currentStep === "details"
               ? "Set up your project details and landing pages"
-              : "Choose the images and videos for your ad copy generation"
-            }
+              : "Choose the images and videos for your ad copy generation"}
           </CredenzaDescription>
         </CredenzaHeader>
 
@@ -163,7 +186,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                           placeholder="Enter project name"
                         />
                         {field.state.meta.errors.map((error) => (
-                          <p key={error?.message} className="text-sm text-red-500">
+                          <p
+                            key={error?.message}
+                            className="text-sm text-red-500"
+                          >
                             {error?.message}
                           </p>
                         ))}
@@ -178,7 +204,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     {(field) => (
                       <div className="space-y-2">
                         {field.state.value.map((url, index) => (
-                          <div key={index} className="flex items-center space-x-2">
+                          <div
+                            key={index}
+                            className="flex items-center space-x-2"
+                          >
                             <Input
                               value={url}
                               onChange={(e) => {
@@ -211,7 +240,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                           Add Another URL
                         </Button>
                         {field.state.meta.errors.map((error) => (
-                          <p key={error?.message} className="text-sm text-red-500">
+                          <p
+                            key={error?.message}
+                            className="text-sm text-red-500"
+                          >
                             {error?.message}
                           </p>
                         ))}
@@ -233,10 +265,15 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                           max="10"
                           value={field.state.value}
                           onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            field.handleChange(parseInt(e.target.value) || 1)
+                          }
                         />
                         {field.state.meta.errors.map((error) => (
-                          <p key={error?.message} className="text-sm text-red-500">
+                          <p
+                            key={error?.message}
+                            className="text-sm text-red-500"
+                          >
                             {error?.message}
                           </p>
                         ))}
@@ -260,7 +297,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                           rows={4}
                         />
                         {field.state.meta.errors.map((error) => (
-                          <p key={error?.message} className="text-sm text-red-500">
+                          <p
+                            key={error?.message}
+                            className="text-sm text-red-500"
+                          >
                             {error?.message}
                           </p>
                         ))}
@@ -284,7 +324,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                         No Assets Available
                       </CardTitle>
                       <CardDescription>
-                        You need to connect your Dropbox account and have some images or videos available.
+                        You need to connect your Dropbox account and have some
+                        images or videos available.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -297,7 +338,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 ) : (
                   <div className="space-y-4">
                     <div className="text-sm text-muted-foreground">
-                      Select the images and videos you want to use for this project:
+                      Select the images and videos you want to use for this
+                      project:
                     </div>
                     <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
                       {availableAssets.map((asset: any) => (
@@ -322,7 +364,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                                   {asset.fileName}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {asset.fileType} • {(asset.fileSize / 1024 / 1024).toFixed(1)} MB
+                                  {asset.fileType} •{" "}
+                                  {(asset.fileSize / 1024 / 1024).toFixed(1)} MB
                                 </p>
                               </div>
                             </div>
@@ -332,9 +375,12 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     </div>
                     {selectedAssets.length > 0 && (
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm text-muted-foreground">Selected:</span>
+                        <span className="text-sm text-muted-foreground">
+                          Selected:
+                        </span>
                         <Badge variant="secondary">
-                          {selectedAssets.length} asset{selectedAssets.length !== 1 ? 's' : ''}
+                          {selectedAssets.length} asset
+                          {selectedAssets.length !== 1 ? "s" : ""}
                         </Badge>
                       </div>
                     )}
@@ -364,10 +410,11 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     <Button
                       type="submit"
                       disabled={
-                        !state.canSubmit || 
-                        state.isSubmitting || 
+                        !state.canSubmit ||
+                        state.isSubmitting ||
                         createProjectMutation.isPending ||
-                        (currentStep === "assets" && selectedAssets.length === 0)
+                        (currentStep === "assets" &&
+                          selectedAssets.length === 0)
                       }
                     >
                       {createProjectMutation.isPending ? (
