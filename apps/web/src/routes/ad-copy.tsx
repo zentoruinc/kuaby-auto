@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ProtectedLayout } from "@/components/protected-layout";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { AdCopyProjectsTable } from "@/components/ad-copy/ad-copy-projects-table";
@@ -12,36 +12,48 @@ export const Route = createFileRoute("/ad-copy")({
 
 function AdCopyRoute() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const matches = useMatches();
 
-  return (
-    <ProtectedLayout
-      currentPage="Ad Copy"
-      breadcrumbItems={[
-        { label: "Dashboard", href: "/dashboard" },
-        { label: "Ad Copy" },
-      ]}
-    >
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Ad Copy Projects</h1>
-            <p className="text-muted-foreground">
-              Create and manage AI-powered ad copy campaigns using your assets and landing pages.
-            </p>
+  // Check if we're on the exact /ad-copy route (no child routes)
+  const isIndexRoute = matches.length === 2 && matches[1]?.id === "/ad-copy";
+
+  if (isIndexRoute) {
+    return (
+      <ProtectedLayout
+        currentPage="Ad Copy"
+        breadcrumbItems={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Ad Copy" },
+        ]}
+      >
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Ad Copy Projects
+              </h1>
+              <p className="text-muted-foreground">
+                Create and manage AI-powered ad copy campaigns using your assets
+                and landing pages.
+              </p>
+            </div>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Project
+            </Button>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Project
-          </Button>
+
+          <AdCopyProjectsTable />
+
+          <CreateProjectDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          />
         </div>
+      </ProtectedLayout>
+    );
+  }
 
-        <AdCopyProjectsTable />
-
-        <CreateProjectDialog
-          open={isCreateDialogOpen}
-          onOpenChange={setIsCreateDialogOpen}
-        />
-      </div>
-    </ProtectedLayout>
-  );
+  // Render child routes
+  return <Outlet />;
 }

@@ -29,6 +29,52 @@ export class WebScraperService {
   private static readonly CACHE_DURATION_DAYS = 7; // Cache for 7 days
 
   /**
+   * Clean content for LLM consumption - remove HTML, normalize whitespace, etc.
+   */
+  private static cleanContentForLLM(content: string): string {
+    return (
+      content
+        // Remove any remaining HTML tags
+        .replace(/<[^>]*>/g, "")
+        // Remove HTML entities
+        .replace(/&[a-zA-Z0-9#]+;/g, " ")
+        // Remove URLs
+        .replace(/https?:\/\/[^\s]+/g, "")
+        // Remove email addresses
+        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "")
+        // Remove excessive punctuation
+        .replace(/[.]{3,}/g, "...")
+        .replace(/[-]{3,}/g, "---")
+        .replace(/[=]{3,}/g, "===")
+        // Normalize whitespace
+        .replace(/\s+/g, " ")
+        // Replace multiple newlines with double newline (paragraph breaks)
+        .replace(/\n\s*\n\s*\n+/g, "\n\n")
+        // Remove leading/trailing whitespace from each line
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join("\n")
+        // Remove common navigation/footer text patterns
+        .replace(
+          /\b(home|about|contact|privacy|terms|cookies?|login|register|sign up|sign in)\b/gi,
+          ""
+        )
+        // Remove social media references
+        .replace(
+          /\b(facebook|twitter|instagram|linkedin|youtube|tiktok|share|follow)\b/gi,
+          ""
+        )
+        // Remove common UI text
+        .replace(
+          /\b(click here|read more|learn more|view all|see all|menu|search|subscribe)\b/gi,
+          ""
+        )
+        .trim()
+    );
+  }
+
+  /**
    * Check if URL content is cached and fresh
    */
   static async getCachedContent(url: string): Promise<ScrapedContent | null> {
@@ -199,11 +245,8 @@ export class WebScraperService {
         }
       }
 
-      // Clean up content
-      content = content
-        .replace(/\s+/g, " ") // Replace multiple whitespace with single space
-        .replace(/\n+/g, "\n") // Replace multiple newlines with single newline
-        .trim();
+      // Clean up content for LLM consumption
+      content = this.cleanContentForLLM(content);
 
       // Limit content length
       if (content.length > this.MAX_CONTENT_LENGTH) {

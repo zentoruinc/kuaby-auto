@@ -15,6 +15,8 @@ import { AssetInterpretationService } from "../services/asset-interpretation";
 import { AssetInterpreter } from "../services/asset-interpreter";
 import { WebScraperService } from "../services/web-scraper";
 import { AdCopyGenerator } from "../services/ad-copy-generator";
+import { CleanupMonitor } from "../services/cleanup-monitor";
+import fs from "fs";
 
 export const adCopyRouter = router({
   // Get all projects for the current user
@@ -97,14 +99,60 @@ export const adCopyRouter = router({
 
       // Associate assets with the project
       if (input.assetIds.length > 0) {
-        const assetUpdates = input.assetIds.map((assetId) =>
-          db
-            .update(adCopyAsset)
-            .set({ projectId, updatedAt: now })
-            .where(eq(adCopyAsset.id, assetId))
+        console.log(
+          `[createProject] Creating assets for project ${projectId}:`,
+          input.assetIds
         );
 
-        await Promise.all(assetUpdates);
+        // Get the actual asset details from Dropbox
+        const dropboxService = new DropboxService();
+        const allDropboxFiles = await dropboxService.listFiles(
+          ctx.session.user.id
+        );
+
+        console.log(
+          `[createProject] Found ${allDropboxFiles.length} files from Dropbox`
+        );
+
+        // The assetIds from the frontend are actually dropboxFileIds from getAvailableAssets
+        const assetInserts = input.assetIds.map(async (dropboxFileId) => {
+          const assetId = nanoid();
+
+          // Find the corresponding Dropbox file
+          const dropboxFile = allDropboxFiles.find(
+            (file) => (file.id || file.path_lower) === dropboxFileId
+          );
+
+          if (!dropboxFile) {
+            console.warn(
+              `[createProject] Could not find Dropbox file for ID: ${dropboxFileId}`
+            );
+            return;
+          }
+
+          console.log(
+            `[createProject] Creating asset record for: ${dropboxFile.name}`
+          );
+
+          return db.insert(adCopyAsset).values({
+            id: assetId,
+            projectId,
+            dropboxFileId,
+            fileName: dropboxFile.name,
+            fileType: dropboxService.getFileType(dropboxFile.name),
+            mimeType: dropboxService.getMimeType(dropboxFile.name),
+            fileSize: dropboxFile.size,
+            dropboxPath: dropboxFile.path_lower,
+            createdAt: now,
+            updatedAt: now,
+          });
+        });
+
+        const results = await Promise.all(assetInserts);
+        const successfulInserts = results.filter(Boolean);
+        console.log(
+          `[createProject] Created ${successfulInserts.length} asset records out of ${input.assetIds.length} requested`
+        );
       }
 
       return { projectId };
@@ -176,7 +224,9 @@ export const adCopyRouter = router({
       }));
     } catch (error) {
       console.error("Failed to fetch Dropbox assets:", error);
-      return [];
+      throw new Error(
+        `Failed to fetch Dropbox assets: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }),
 
@@ -211,6 +261,156 @@ export const adCopyRouter = router({
       });
 
       return { assetId };
+    }),
+
+  // Process assets for interpretation
+  processProjectAssets: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        console.log(
+          `[processProjectAssets] Starting asset processing for project: ${input.projectId}`
+        );
+
+        // Get project assets
+        const assets = await db
+          .select()
+          .from(adCopyAsset)
+          .where(eq(adCopyAsset.projectId, input.projectId));
+
+        if (assets.length === 0) {
+          return {
+            success: true,
+            message: "No assets to process",
+            processedAssets: [],
+          };
+        }
+
+        console.log(
+          `[processProjectAssets] Found ${assets.length} assets to process`
+        );
+
+        const dropboxService = new DropboxService();
+        const assetInterpreter = new AssetInterpreter();
+        const processedAssets = [];
+
+        // Process each asset
+        for (const asset of assets) {
+          try {
+            console.log(
+              `[processProjectAssets] Processing asset: ${asset.fileName}`
+            );
+
+            // Check if interpretation already exists in cache
+            const existingInterpretation = await db
+              .select()
+              .from(assetInterpretationCache)
+              .where(
+                eq(assetInterpretationCache.dropboxFileId, asset.dropboxFileId)
+              )
+              .limit(1);
+
+            if (existingInterpretation[0]) {
+              console.log(
+                `[processProjectAssets] Asset ${asset.fileName} already processed, skipping`
+              );
+              processedAssets.push({
+                fileName: asset.fileName,
+                status: "already_processed",
+                interpretation: existingInterpretation[0].interpretation,
+              });
+              continue;
+            }
+
+            // Download file from Dropbox
+            let downloadResult;
+            try {
+              downloadResult = await dropboxService.downloadFile(
+                ctx.session.user.id,
+                asset.dropboxPath
+              );
+              console.log(
+                `[processProjectAssets] Downloaded ${asset.fileName} to ${downloadResult.tempPath}`
+              );
+            } catch (error) {
+              console.error(
+                `[processProjectAssets] Failed to download ${asset.fileName}: ${error instanceof Error ? error.message : "Unknown error"}`
+              );
+              processedAssets.push({
+                fileName: asset.fileName,
+                status: "download_failed",
+                error: error instanceof Error ? error.message : "Unknown error",
+              });
+              continue;
+            }
+
+            // Process the asset for interpretation
+            const interpretationResult = await assetInterpreter.interpretAsset(
+              asset.dropboxFileId,
+              downloadResult.tempPath,
+              asset.fileType as "image" | "video",
+              asset.fileName
+            );
+
+            // Clean up downloaded file
+            try {
+              if (fs.existsSync(downloadResult.tempPath)) {
+                fs.unlinkSync(downloadResult.tempPath);
+              }
+            } catch (error) {
+              console.warn(
+                `[processProjectAssets] Failed to cleanup temp file: ${error}`
+              );
+            }
+
+            if (interpretationResult.success) {
+              console.log(
+                `[processProjectAssets] Successfully processed ${asset.fileName}`
+              );
+              processedAssets.push({
+                fileName: asset.fileName,
+                status: "success",
+                interpretation: interpretationResult.interpretation,
+                processingMethod: interpretationResult.processingMethod,
+              });
+            } else {
+              console.error(
+                `[processProjectAssets] Failed to interpret ${asset.fileName}: ${interpretationResult.error}`
+              );
+              processedAssets.push({
+                fileName: asset.fileName,
+                status: "interpretation_failed",
+                error: interpretationResult.error,
+              });
+            }
+          } catch (error) {
+            console.error(
+              `[processProjectAssets] Error processing asset ${asset.fileName}:`,
+              error
+            );
+            processedAssets.push({
+              fileName: asset.fileName,
+              status: "error",
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+
+        console.log(
+          `[processProjectAssets] Completed processing ${processedAssets.length} assets`
+        );
+
+        return {
+          success: true,
+          message: `Processed ${processedAssets.length} assets`,
+          processedAssets,
+        };
+      } catch (error) {
+        console.error(`[processProjectAssets] Error:`, error);
+        throw new Error(
+          `Failed to process assets: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
     }),
 
   // Process assets for a project (download and cache interpretations)
@@ -500,4 +700,24 @@ export const adCopyRouter = router({
         );
       }
     }),
+
+  // Manual cleanup endpoint for monitoring and maintenance
+  performCleanup: protectedProcedure.mutation(async () => {
+    try {
+      console.log("[performCleanup] Manual cleanup triggered");
+      const monitor = new CleanupMonitor();
+      const report = await monitor.performCleanup();
+
+      return {
+        success: true,
+        message: "Cleanup completed successfully",
+        report,
+      };
+    } catch (error) {
+      console.error("[performCleanup] Error:", error);
+      throw new Error(
+        `Cleanup failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }),
 });

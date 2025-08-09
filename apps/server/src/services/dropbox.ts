@@ -143,7 +143,10 @@ export class DropboxService {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to list Dropbox files: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to list Dropbox files: ${response.status} - ${errorText}`
+        );
       }
 
       const data: DropboxListResponse = await response.json();

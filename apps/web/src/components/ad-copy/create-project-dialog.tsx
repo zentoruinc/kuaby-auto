@@ -29,13 +29,15 @@ import {
   X,
   FileImage,
   FileVideo,
-  Loader2,
+  Loader,
   ExternalLink,
   Upload,
 } from "lucide-react";
-import { trpc } from "@/utils/trpc";
+import { trpc, queryClient } from "@/utils/trpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -45,26 +47,64 @@ interface CreateProjectDialogProps {
 const defaultSystemPrompt =
   "You are an expert ad copywriter. Create compelling, persuasive ad copy that drives conversions. Focus on benefits, use emotional triggers, and include clear calls-to-action.";
 
+// Step indicator component
+function StepIndicator({
+  currentStep,
+  totalSteps,
+}: {
+  currentStep: number;
+  totalSteps: number;
+}) {
+  return (
+    <div className="flex items-center justify-center mb-6">
+      {Array.from({ length: totalSteps }).map((_, index) => (
+        <div key={index} className="flex items-center">
+          <div
+            className={cn(
+              "w-4 h-4 rounded-full transition-all duration-300 ease-in-out",
+              index <= currentStep ? "bg-primary" : "bg-primary/30",
+              index < currentStep && "bg-primary"
+            )}
+          />
+          {index < totalSteps - 1 && (
+            <div
+              className={cn(
+                "w-8 h-0.5",
+                index < currentStep ? "bg-primary" : "bg-primary/30"
+              )}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CreateProjectDialog({
   open,
   onOpenChange,
 }: CreateProjectDialogProps) {
-  const [currentStep, setCurrentStep] = useState<"details" | "assets">(
-    "details"
-  );
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const totalSteps = 2;
 
-  const { data: availableAssets = [], isLoading: assetsLoading } = useQuery(
-    trpc.adCopy.getAvailableAssets.queryOptions()
-  );
+  const {
+    data: availableAssets = [],
+    isLoading: assetsLoading,
+    error: assetsError,
+  } = useQuery(trpc.adCopy.getAvailableAssets.queryOptions());
 
   const createProjectMutation = useMutation(
     trpc.adCopy.createProject.mutationOptions({
       onSuccess: () => {
         toast.success("Project created successfully");
+        // Invalidate and refetch projects list
+        queryClient.invalidateQueries({
+          queryKey: [["adCopy", "getProjects"]],
+        });
         onOpenChange(false);
         form.reset();
-        setCurrentStep("details");
+        setCurrentStep(0);
         setSelectedAssets([]);
       },
       onError: (error) => {
@@ -81,8 +121,51 @@ export function CreateProjectDialog({
       variationCount: 3,
     },
     onSubmit: async ({ value }) => {
-      if (currentStep === "details") {
-        setCurrentStep("assets");
+      if (currentStep === 0) {
+        // Validate each URL individually to provide specific feedback
+        let hasErrors = false;
+
+        // Validate name
+        if (!value.name || value.name.trim() === "") {
+          toast.error("Project name is required");
+          hasErrors = true;
+        }
+
+        // Validate URLs individually
+        const nonEmptyUrls = value.landingPageUrls.filter(
+          (url) => url.trim() !== ""
+        );
+        if (nonEmptyUrls.length === 0) {
+          toast.error("At least one landing page URL is required");
+          hasErrors = true;
+        } else {
+          nonEmptyUrls.forEach((url, index) => {
+            try {
+              new URL(url);
+            } catch {
+              toast.error(`URL ${index + 1} is invalid: ${url}`);
+              hasErrors = true;
+            }
+          });
+        }
+
+        // Validate system prompt
+        if (!value.systemPrompt || value.systemPrompt.trim() === "") {
+          toast.error("System prompt is required");
+          hasErrors = true;
+        }
+
+        // Validate variation count
+        if (value.variationCount < 1 || value.variationCount > 10) {
+          toast.error("Variation count must be between 1 and 10");
+          hasErrors = true;
+        }
+
+        if (hasErrors) {
+          return;
+        }
+
+        setCurrentStep(1);
         return;
       }
 
@@ -94,19 +177,6 @@ export function CreateProjectDialog({
         ),
         assetIds: selectedAssets,
       });
-    },
-    validators: {
-      onSubmit: z.object({
-        name: z.string().min(1, "Project name is required"),
-        landingPageUrls: z
-          .array(z.string().url("Invalid URL"))
-          .min(1, "At least one landing page URL is required"),
-        systemPrompt: z.string().min(1, "System prompt is required"),
-        variationCount: z
-          .number()
-          .min(1, "Must generate at least 1 variation")
-          .max(10, "Maximum 10 variations allowed"),
-      }),
     },
   });
 
@@ -134,15 +204,15 @@ export function CreateProjectDialog({
   };
 
   const handleBack = () => {
-    if (currentStep === "assets") {
-      setCurrentStep("details");
+    if (currentStep === 1) {
+      setCurrentStep(0);
     }
   };
 
   const handleClose = () => {
     onOpenChange(false);
     form.reset();
-    setCurrentStep("details");
+    setCurrentStep(0);
     setSelectedAssets([]);
   };
 
@@ -151,16 +221,16 @@ export function CreateProjectDialog({
       <CredenzaContent className="max-w-2xl">
         <CredenzaHeader>
           <CredenzaTitle>
-            {currentStep === "details"
-              ? "Create New Ad Copy Project"
-              : "Select Assets"}
+            {currentStep === 0 ? "Create New Ad Copy Project" : "Select Assets"}
           </CredenzaTitle>
           <CredenzaDescription>
-            {currentStep === "details"
+            {currentStep === 0
               ? "Set up your project details and landing pages"
               : "Choose the images and videos for your ad copy generation"}
           </CredenzaDescription>
         </CredenzaHeader>
+
+        <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
 
         <form
           onSubmit={(e) => {
@@ -170,7 +240,7 @@ export function CreateProjectDialog({
           }}
         >
           <CredenzaBody className="space-y-6">
-            {currentStep === "details" ? (
+            {currentStep === 0 ? (
               <>
                 <div className="space-y-2">
                   <form.Field name="name">
@@ -185,12 +255,9 @@ export function CreateProjectDialog({
                           onChange={(e) => field.handleChange(e.target.value)}
                           placeholder="Enter project name"
                         />
-                        {field.state.meta.errors.map((error) => (
-                          <p
-                            key={error?.message}
-                            className="text-sm text-red-500"
-                          >
-                            {error?.message}
+                        {field.state.meta.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-red-500">
+                            {error}
                           </p>
                         ))}
                       </div>
@@ -239,12 +306,9 @@ export function CreateProjectDialog({
                           <Plus className="mr-2 h-4 w-4" />
                           Add Another URL
                         </Button>
-                        {field.state.meta.errors.map((error) => (
-                          <p
-                            key={error?.message}
-                            className="text-sm text-red-500"
-                          >
-                            {error?.message}
+                        {field.state.meta.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-red-500">
+                            {error}
                           </p>
                         ))}
                       </div>
@@ -269,12 +333,9 @@ export function CreateProjectDialog({
                             field.handleChange(parseInt(e.target.value) || 1)
                           }
                         />
-                        {field.state.meta.errors.map((error) => (
-                          <p
-                            key={error?.message}
-                            className="text-sm text-red-500"
-                          >
-                            {error?.message}
+                        {field.state.meta.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-red-500">
+                            {error}
                           </p>
                         ))}
                       </div>
@@ -296,12 +357,9 @@ export function CreateProjectDialog({
                           placeholder="Instructions for the AI copywriter..."
                           rows={4}
                         />
-                        {field.state.meta.errors.map((error) => (
-                          <p
-                            key={error?.message}
-                            className="text-sm text-red-500"
-                          >
-                            {error?.message}
+                        {field.state.meta.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-red-500">
+                            {error}
                           </p>
                         ))}
                       </div>
@@ -313,9 +371,30 @@ export function CreateProjectDialog({
               <>
                 {assetsLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <Loader className="h-6 w-6 animate-spin" />
                     <span className="ml-2">Loading assets...</span>
                   </div>
+                ) : assetsError ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center text-red-600">
+                        <Upload className="mr-2 h-5 w-5" />
+                        Error Loading Assets
+                      </CardTitle>
+                      <CardDescription>
+                        Failed to load assets from Dropbox:{" "}
+                        {assetsError.message}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button variant="outline" className="w-full" asChild>
+                        <Link to="/integrations">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Check Integrations
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
                 ) : availableAssets.length === 0 ? (
                   <Card>
                     <CardHeader>
@@ -329,9 +408,11 @@ export function CreateProjectDialog({
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <Button variant="outline" className="w-full">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Go to Integrations
+                      <Button variant="outline" className="w-full" asChild>
+                        <Link to="/integrations">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Go to Integrations
+                        </Link>
                       </Button>
                     </CardContent>
                   </Card>
@@ -391,36 +472,29 @@ export function CreateProjectDialog({
           </CredenzaBody>
 
           <CredenzaFooter>
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full mt-6">
               <div>
-                {currentStep === "assets" && (
+                {currentStep === 1 && (
                   <Button type="button" variant="outline" onClick={handleBack}>
                     Back
                   </Button>
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                <CredenzaClose asChild>
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </CredenzaClose>
                 <form.Subscribe>
                   {(state) => (
                     <Button
                       type="submit"
                       disabled={
-                        !state.canSubmit ||
                         state.isSubmitting ||
                         createProjectMutation.isPending ||
-                        (currentStep === "assets" &&
-                          selectedAssets.length === 0)
+                        (currentStep === 1 && selectedAssets.length === 0)
                       }
                     >
                       {createProjectMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
-                      {currentStep === "details" ? "Next" : "Create Project"}
+                      {currentStep === 0 ? "Next" : "Create Project"}
                     </Button>
                   )}
                 </form.Subscribe>

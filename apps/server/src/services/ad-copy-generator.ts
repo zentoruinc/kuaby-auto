@@ -1,8 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { db } from '../db';
-import { adCopyGeneration, adCopyProject, adCopyAsset } from '../db/schema/ad-copy';
-import { eq, and } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { db } from "../db";
+import {
+  adCopyGeneration,
+  adCopyProject,
+  adCopyAsset,
+  assetInterpretationCache,
+} from "../db/schema/ad-copy";
+import { eq, and } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export interface AdCopyVariation {
   variationNumber: number;
@@ -44,12 +49,12 @@ export class AdCopyGenerator {
   constructor() {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
-      throw new Error('GOOGLE_AI_API_KEY environment variable is required');
+      throw new Error("GOOGLE_AI_API_KEY environment variable is required");
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+    this.model = this.genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
       generationConfig: {
         temperature: 0.8,
         topK: 40,
@@ -62,27 +67,32 @@ export class AdCopyGenerator {
   /**
    * Generate ad copy variations based on context
    */
-  async generateAdCopy(context: GenerationContext): Promise<AdCopyGenerationResult> {
+  async generateAdCopy(
+    context: GenerationContext
+  ): Promise<AdCopyGenerationResult> {
     const startTime = Date.now();
 
     try {
       const prompt = this.buildPrompt(context);
-      
+
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const generatedText = response.text();
 
       // Parse the generated ad copy variations
-      const variations = this.parseGeneratedContent(generatedText, context.variationCount);
+      const variations = this.parseGeneratedContent(
+        generatedText,
+        context.variationCount
+      );
 
       const processingTime = Date.now() - startTime;
 
       return {
-        projectId: '', // Will be set by caller
+        projectId: "", // Will be set by caller
         variations,
         success: true,
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: "gemini-1.5-flash",
           temperature: 0.8,
           totalTokens: this.estimateTokens(prompt + generatedText),
           processingTime,
@@ -95,14 +105,14 @@ export class AdCopyGenerator {
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      
+
       return {
-        projectId: '',
+        projectId: "",
         variations: [],
         success: false,
-        error: `Ad copy generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: `Ad copy generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: "gemini-1.5-flash",
           temperature: 0.8,
           totalTokens: 0,
           processingTime,
@@ -139,7 +149,7 @@ export class AdCopyGenerator {
     if (context.landingPageContent.length > 0) {
       prompt += `LANDING PAGE CONTENT:\n`;
       context.landingPageContent.forEach((content, index) => {
-        prompt += `Page ${index + 1}: ${content.substring(0, 1000)}${content.length > 1000 ? '...' : ''}\n`;
+        prompt += `Page ${index + 1}: ${content.substring(0, 1000)}${content.length > 1000 ? "..." : ""}\n`;
       });
       prompt += `\n`;
     }
@@ -178,21 +188,26 @@ Generate the ad copy variations now:`;
   /**
    * Parse the generated content into structured variations
    */
-  private parseGeneratedContent(generatedText: string, expectedCount: number): AdCopyVariation[] {
+  private parseGeneratedContent(
+    generatedText: string,
+    expectedCount: number
+  ): AdCopyVariation[] {
     const variations: AdCopyVariation[] = [];
-    
+
     // Split by variation markers
     const variationBlocks = generatedText.split(/VARIATION \d+:/i).slice(1);
 
     for (let i = 0; i < Math.min(variationBlocks.length, expectedCount); i++) {
       const block = variationBlocks[i].trim();
-      
+
       // Extract headline, body, and CTA using regex
       const headlineMatch = block.match(/HEADLINE:\s*(.+?)(?=\n|BODY:|$)/i);
       const bodyMatch = block.match(/BODY:\s*(.+?)(?=\n|CTA:|$)/i);
       const ctaMatch = block.match(/CTA:\s*(.+?)(?=\n|VARIATION|$)/i);
 
-      const headline = headlineMatch ? headlineMatch[1].trim() : `Headline ${i + 1}`;
+      const headline = headlineMatch
+        ? headlineMatch[1].trim()
+        : `Headline ${i + 1}`;
       const body = bodyMatch ? bodyMatch[1].trim() : `Body text ${i + 1}`;
       const callToAction = ctaMatch ? ctaMatch[1].trim() : `CTA ${i + 1}`;
 
@@ -223,7 +238,7 @@ Generate the ad copy variations now:`;
    */
   private truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength - 3) + '...';
+    return text.substring(0, maxLength - 3) + "...";
   }
 
   /**
@@ -247,7 +262,7 @@ Generate the ad copy variations now:`;
 
     for (const variation of variations) {
       const id = nanoid();
-      
+
       await db.insert(adCopyGeneration).values({
         id,
         projectId,
@@ -270,22 +285,22 @@ Generate the ad copy variations now:`;
   /**
    * Generate and save ad copy for a project
    */
-  async generateForProject(projectId: string, userId: string): Promise<AdCopyGenerationResult> {
+  async generateForProject(
+    projectId: string,
+    userId: string
+  ): Promise<AdCopyGenerationResult> {
     try {
       // Get project details
       const project = await db
         .select()
         .from(adCopyProject)
         .where(
-          and(
-            eq(adCopyProject.id, projectId),
-            eq(adCopyProject.userId, userId)
-          )
+          and(eq(adCopyProject.id, projectId), eq(adCopyProject.userId, userId))
         )
         .limit(1);
 
       if (!project[0]) {
-        throw new Error('Project not found');
+        throw new Error("Project not found");
       }
 
       // Build context from various sources
@@ -303,15 +318,68 @@ Generate the ad copy variations now:`;
         .from(adCopyAsset)
         .where(eq(adCopyAsset.projectId, projectId));
 
-      // Note: In a real implementation, you would fetch the cached interpretations
-      // and scraped landing page content here. For now, we'll use placeholder data.
-      
-      if (assets.length === 0) {
-        context.assetInterpretations.push('No asset interpretations available');
+      // Fetch cached interpretations for each asset
+      if (assets.length > 0) {
+        const interpretationPromises = assets.map(async (asset) => {
+          try {
+            const cached = await db
+              .select()
+              .from(assetInterpretationCache)
+              .where(
+                eq(assetInterpretationCache.dropboxFileId, asset.dropboxFileId)
+              )
+              .limit(1);
+
+            if (cached[0]) {
+              return `${asset.fileName}: ${cached[0].interpretation}`;
+            } else {
+              return `${asset.fileName}: Asset interpretation not available (not processed yet)`;
+            }
+          } catch (error) {
+            return `${asset.fileName}: Error loading interpretation`;
+          }
+        });
+
+        const interpretations = await Promise.all(interpretationPromises);
+        context.assetInterpretations.push(...interpretations);
+      } else {
+        context.assetInterpretations.push(
+          "No assets selected for this project"
+        );
       }
 
-      if (project[0].landingPageUrls.length === 0) {
-        context.landingPageContent.push('No landing page content available');
+      // Scrape landing page content
+      if (project[0].landingPageUrls.length > 0) {
+        console.log(
+          `[generateForProject] Scraping ${project[0].landingPageUrls.length} landing pages`
+        );
+
+        const scrapingPromises = project[0].landingPageUrls.map(async (url) => {
+          try {
+            const { WebScraperService } = await import("./web-scraper");
+            const scrapedContent = await WebScraperService.scrapeContent(url);
+
+            if (scrapedContent.success && scrapedContent.content) {
+              console.log(
+                `[generateForProject] Successfully scraped ${url}: ${scrapedContent.content.length} chars`
+              );
+              return `Landing page (${url}):\nTitle: ${scrapedContent.title}\nContent: ${scrapedContent.content}`;
+            } else {
+              console.warn(
+                `[generateForProject] Failed to scrape ${url}: ${scrapedContent.error}`
+              );
+              return `Landing page (${url}): Failed to scrape content - ${scrapedContent.error}`;
+            }
+          } catch (error) {
+            console.error(`[generateForProject] Error scraping ${url}:`, error);
+            return `Landing page (${url}): Error during scraping`;
+          }
+        });
+
+        const scrapedResults = await Promise.all(scrapingPromises);
+        context.landingPageContent.push(...scrapedResults);
+      } else {
+        context.landingPageContent.push("No landing page URLs provided");
       }
 
       // Generate ad copy
@@ -334,9 +402,9 @@ Generate the ad copy variations now:`;
         projectId,
         variations: [],
         success: false,
-        error: `Project ad copy generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: `Project ad copy generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         metadata: {
-          model: 'gemini-1.5-flash',
+          model: "gemini-1.5-flash",
           temperature: 0.8,
           totalTokens: 0,
           processingTime: 0,

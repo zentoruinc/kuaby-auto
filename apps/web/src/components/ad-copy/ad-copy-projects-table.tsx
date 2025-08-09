@@ -28,6 +28,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   MoreHorizontal,
@@ -37,12 +48,14 @@ import {
   Edit,
   Trash2,
   Play,
-  Copy,
+  Loader,
 } from "lucide-react";
 import { trpc } from "@/utils/trpc";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "@tanstack/react-router";
+import { EditProjectDialog } from "./edit-project-dialog";
 
 // Define the type based on what we expect from the API
 type AdCopyProject = {
@@ -68,6 +81,8 @@ export function AdCopyProjectsTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const {
     data: projects = [],
@@ -87,10 +102,14 @@ export function AdCopyProjectsTable() {
     })
   );
 
+  const processAssetsMutation = useMutation(
+    trpc.adCopy.processProjectAssets.mutationOptions()
+  );
+
   const generateAdCopyMutation = useMutation(
     trpc.adCopy.generateAdCopy.mutationOptions({
       onSuccess: () => {
-        toast.success("Ad copy generation started");
+        toast.success("Ad copy generated successfully");
         refetch();
       },
       onError: (error) => {
@@ -98,6 +117,21 @@ export function AdCopyProjectsTable() {
       },
     })
   );
+
+  const handleGenerateAdCopy = async (projectId: string) => {
+    try {
+      // First, process assets
+      toast.info("Processing assets...");
+      await processAssetsMutation.mutateAsync({ projectId });
+
+      // Then generate ad copy
+      toast.info("Generating ad copy...");
+      await generateAdCopyMutation.mutateAsync({ projectId });
+    } catch (error) {
+      // Error handling is done in individual mutations
+      console.error("Error in ad copy generation flow:", error);
+    }
+  };
 
   const columns: ColumnDef<AdCopyProject>[] = [
     {
@@ -190,40 +224,77 @@ export function AdCopyProjectsTable() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(project.id)}
+                onClick={() =>
+                  navigate({
+                    to: "/ad-copy/$projectId",
+                    params: { projectId: project.id },
+                  })
+                }
               >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy project ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
                 <Eye className="mr-2 h-4 w-4" />
                 View details
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEditProjectId(project.id)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit project
               </DropdownMenuItem>
               {project.status === "draft" && (
-                <DropdownMenuItem
-                  onClick={() =>
-                    generateAdCopyMutation.mutate({ projectId: project.id })
-                  }
-                  disabled={generateAdCopyMutation.isPending}
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Generate Ad Copy
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleGenerateAdCopy(project.id)}
+                    disabled={
+                      processAssetsMutation.isPending ||
+                      generateAdCopyMutation.isPending
+                    }
+                  >
+                    {processAssetsMutation.isPending ||
+                    generateAdCopyMutation.isPending ? (
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-2 h-4 w-4" />
+                    )}
+                    Generate Ad Copy
+                  </DropdownMenuItem>
+                </>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => deleteProjectMutation.mutate({ id: project.id })}
-                disabled={deleteProjectMutation.isPending}
-                className="text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="text-red-600 focus:bg-red-50 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                    Delete
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete
+                      the project "{project.name}" and all associated data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() =>
+                        deleteProjectMutation.mutate({ id: project.id })
+                      }
+                      disabled={deleteProjectMutation.isPending}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {deleteProjectMutation.isPending
+                        ? "Deleting..."
+                        : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -343,6 +414,17 @@ export function AdCopyProjectsTable() {
           </Button>
         </div>
       </div>
+
+      {/* Edit Project Dialog */}
+      {editProjectId && (
+        <EditProjectDialog
+          open={!!editProjectId}
+          onOpenChange={(open) => {
+            if (!open) setEditProjectId(null);
+          }}
+          projectId={editProjectId}
+        />
+      )}
     </div>
   );
 }

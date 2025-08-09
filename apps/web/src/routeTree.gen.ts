@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AdCopyRouteImport } from './routes/ad-copy'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdCopyProjectIdRouteImport } from './routes/ad-copy/$projectId'
 
 const TodosRoute = TodosRouteImport.update({
   id: '/todos',
@@ -46,31 +47,39 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdCopyProjectIdRoute = AdCopyProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => AdCopyRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/ad-copy': typeof AdCopyRoute
+  '/ad-copy': typeof AdCopyRouteWithChildren
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
+  '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/ad-copy': typeof AdCopyRoute
+  '/ad-copy': typeof AdCopyRouteWithChildren
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
+  '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/ad-copy': typeof AdCopyRoute
+  '/ad-copy': typeof AdCopyRouteWithChildren
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
   '/integrations': typeof IntegrationsRoute
   '/todos': typeof TodosRoute
+  '/ad-copy/$projectId': typeof AdCopyProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +90,16 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/todos'
+    | '/ad-copy/$projectId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ad-copy' | '/ai' | '/dashboard' | '/integrations' | '/todos'
+  to:
+    | '/'
+    | '/ad-copy'
+    | '/ai'
+    | '/dashboard'
+    | '/integrations'
+    | '/todos'
+    | '/ad-copy/$projectId'
   id:
     | '__root__'
     | '/'
@@ -91,11 +108,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/todos'
+    | '/ad-copy/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdCopyRoute: typeof AdCopyRoute
+  AdCopyRoute: typeof AdCopyRouteWithChildren
   AiRoute: typeof AiRoute
   DashboardRoute: typeof DashboardRoute
   IntegrationsRoute: typeof IntegrationsRoute
@@ -146,12 +164,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ad-copy/$projectId': {
+      id: '/ad-copy/$projectId'
+      path: '/$projectId'
+      fullPath: '/ad-copy/$projectId'
+      preLoaderRoute: typeof AdCopyProjectIdRouteImport
+      parentRoute: typeof AdCopyRoute
+    }
   }
 }
 
+interface AdCopyRouteChildren {
+  AdCopyProjectIdRoute: typeof AdCopyProjectIdRoute
+}
+
+const AdCopyRouteChildren: AdCopyRouteChildren = {
+  AdCopyProjectIdRoute: AdCopyProjectIdRoute,
+}
+
+const AdCopyRouteWithChildren =
+  AdCopyRoute._addFileChildren(AdCopyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdCopyRoute: AdCopyRoute,
+  AdCopyRoute: AdCopyRouteWithChildren,
   AiRoute: AiRoute,
   DashboardRoute: DashboardRoute,
   IntegrationsRoute: IntegrationsRoute,

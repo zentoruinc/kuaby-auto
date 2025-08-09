@@ -1,3 +1,4 @@
+import React from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
   Breadcrumb,
@@ -63,22 +64,20 @@ export function ProtectedLayout({
             <Breadcrumb>
               <BreadcrumbList>
                 {breadcrumbItems.map((item, index) => (
-                  <>
-                    <div key={index} className="flex items-center">
-                      <BreadcrumbItem className="hidden md:block">
-                        {item.href ? (
-                          <BreadcrumbLink asChild>
-                            <Link to={item.href}>{item.label}</Link>
-                          </BreadcrumbLink>
-                        ) : (
-                          <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                        )}
-                      </BreadcrumbItem>
-                    </div>
+                  <React.Fragment key={index}>
+                    <BreadcrumbItem className="hidden md:block">
+                      {item.href ? (
+                        <BreadcrumbLink asChild>
+                          <Link to={item.href}>{item.label}</Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
                     {index < breadcrumbItems.length - 1 && (
                       <BreadcrumbSeparator className="hidden md:block" />
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </BreadcrumbList>
             </Breadcrumb>

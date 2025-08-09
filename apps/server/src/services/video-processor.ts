@@ -182,9 +182,17 @@ export class VideoProcessor {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
+        console.log(
+          `[VideoProcessor] Successfully cleaned up temp file: ${filePath}`
+        );
+      } else {
+        console.log(`[VideoProcessor] Temp file already removed: ${filePath}`);
       }
     } catch (error) {
-      console.error(`Failed to cleanup temp file ${filePath}:`, error);
+      console.error(
+        `[VideoProcessor] Failed to cleanup temp file ${filePath}:`,
+        error
+      );
     }
   }
 

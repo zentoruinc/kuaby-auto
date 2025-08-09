@@ -3,6 +3,7 @@ dist/
 /build
 /out/
 config/
+temp/
 
 # dev
 .yarn/
